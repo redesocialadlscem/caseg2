@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* NEO-BRUTALISM DESIGN TOKENS */
+@theme {
+  --color-brand: #166534; /* Green-800: Industrial Safety Green */
+  --color-brand-light: #22c55e; /* Green-500: Hover/Accent */
+  --color-surface: #ffffff;
+  --color-ink: #000000;
+  
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  
+  --shadow-brutal: clamp(2px, 0.4vw, 4px) clamp(2px, 0.4vw, 4px) 0px 0px var(--color-ink);
+  --shadow-brutal-sm: clamp(1px, 0.2vw, 2px) clamp(1px, 0.2vw, 2px) 0px 0px var(--color-ink);
+  --shadow-brutal-lg: clamp(3px, 0.6vw, 6px) clamp(3px, 0.6vw, 6px) 0px 0px var(--color-ink);
+  --shadow-brutal-hover: 0px 0px 0px 0px var(--color-ink);
+  --translate-brutal: clamp(-1px, -0.2vw, -2px);
+  --translate-brutal-active: clamp(1px, 0.2vw, 2px);
+}
+
+/* BASE STYLES */
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* UTILITIES FOR NEO-BRUTALISM */
+.brutal-border {
+  border: 2px solid var(--color-ink);
+}
+
+.brutal-shadow {
+  box-shadow: var(--shadow-brutal);
+}
+
+.brutal-interactive {
+  transition: all 0.15s ease-in-out;
+}
+
+.brutal-interactive:hover {
+  transform: translate(var(--translate-brutal), var(--translate-brutal));
+  box-shadow: var(--shadow-brutal-lg);
+}
+
+.brutal-interactive:active {
+  transform: translate(var(--translate-brutal-active), var(--translate-brutal-active));
+  box-shadow: var(--shadow-brutal-hover);
+}
+
+/* FOCUS VISIBLE FOR ACCESSIBILITY */
+:focus-visible {
+  outline: 3px solid var(--color-brand);
+  outline-offset: 2px;
+}
