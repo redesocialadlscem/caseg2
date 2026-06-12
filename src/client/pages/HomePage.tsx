@@ -48,8 +48,8 @@ function HeroSection() {
   }, []);
 
   return (
-    <section className="relative z-0 py-10 md:py-16 border-b-2 border-black overflow-hidden">
-      {/* Background Video with fade-on-loop (Neo-Brutalist: no gradient/blur) */}
+    <section className="relative z-0 py-10 md:py-16 border-b-2 border-black overflow-hidden" style={{ background: 'linear-gradient(135deg, #0b2b1e 0%, #166534 50%, #4d7c0f 100%)' }}>
+      {/* Background Video with fade-on-loop — muted blend mode to not hide gradient */}
       <video
         ref={videoRef}
         autoPlay
@@ -61,13 +61,12 @@ function HeroSection() {
         style={{
           position: 'absolute', inset: 0, width: '100%', height: '100%',
           objectFit: 'cover', zIndex: 0,
-          opacity: 1, transition: 'opacity 600ms ease', willChange: 'opacity',
+          opacity: 0.3, transition: 'opacity 600ms ease', willChange: 'opacity',
+          mixBlendMode: 'overlay',
         }}
       >
         <source src="/hero.mp4" type="video/mp4" />
       </video>
-      {/* Solid overlay — Neo-Brutalist: NO gradient, NO blur */}
-      <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(255,255,255,0.4)', zIndex: 1 }} />
 
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">

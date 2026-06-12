@@ -13,6 +13,9 @@ import {
   Hash,
   TrendingUp,
   CheckCircle2,
+  Filter,
+  User,
+  Download,
 } from 'lucide-react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -188,6 +191,10 @@ export function AdminCertificatesPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [studentFilter, setStudentFilter] = useState('');
+  const [debouncedStudent, setDebouncedStudent] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const limit = 20;
 
   const { accessToken } = useAuthContext();
@@ -197,6 +204,9 @@ export function AdminCertificatesPage() {
     setLoading(true);
     const params = new URLSearchParams({ page: String(page), limit: String(limit) });
     if (debouncedSearch) params.set('search', debouncedSearch);
+    if (debouncedStudent) params.set('student', debouncedStudent);
+    if (dateFrom) params.set('dateFrom', dateFrom);
+    if (dateTo) params.set('dateTo', dateTo);
     fetch(`/api/admin/certificates?${params}`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     })
@@ -209,7 +219,7 @@ export function AdminCertificatesPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [accessToken, page, debouncedSearch]);
+  }, [accessToken, page, debouncedSearch, debouncedStudent, dateFrom, dateTo]);
 
   // Debounce search
   useEffect(() => {
@@ -219,6 +229,20 @@ export function AdminCertificatesPage() {
     }, 300);
     return () => clearTimeout(timeout);
   }, [searchTerm]);
+
+  // Debounce student filter
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setDebouncedStudent(studentFilter);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timeout);
+  }, [studentFilter]);
+
+  // Reset page when date filters change
+  useEffect(() => {
+    setPage(1);
+  }, [dateFrom, dateTo]);
 
   const totalPages = Math.ceil(total / limit);
 
@@ -252,6 +276,32 @@ export function AdminCertificatesPage() {
       { label: 'Taxa de Conclusão', value: '78%', icon: CheckCircle2 },
     ];
   }, [certificates, total]);
+
+  const handleExport = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (debouncedStudent) params.set('student', debouncedStudent);
+      if (dateFrom) params.set('dateFrom', dateFrom);
+      if (dateTo) params.set('dateTo', dateTo);
+      const res = await fetch(`/api/admin/certificates/export?${params}`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificados_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      showToast(`Arquivo exportado com sucesso`);
+    } catch {
+      showToast('Erro ao exportar certificados');
+    }
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -333,17 +383,89 @@ export function AdminCertificatesPage() {
 
         {/* Search & Table */}
         <section>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <h2 className="font-display font-bold text-xl uppercase tracking-wide">
-              Todos os Certificados
-            </h2>
-            <div className="w-full sm:w-80">
-              <Input
-                placeholder="Buscar por aluno, curso ou código..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="!py-2.5 !text-sm"
-              />
+          <div className="flex flex-col gap-4 mb-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <h2 className="font-display font-bold text-xl uppercase tracking-wide">
+                Todos os Certificados
+              </h2>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="w-full sm:w-80">
+                  <Input
+                    placeholder="Buscar por aluno, curso ou código..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="!py-2.5 !text-sm"
+                  />
+                </div>
+                <Button
+                  variant="dark"
+                  size="sm"
+                  onClick={handleExport}
+                  disabled={loading || total === 0}
+                  className="gap-2 shrink-0"
+                >
+                  <Download size={16} strokeWidth={2.5} />
+                  <span className="hidden sm:inline">Exportar CSV</span>
+                </Button>
+              </div>
+            </div>
+
+            {/* Filters Row */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50">
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-500 shrink-0">
+                <Filter size={14} />
+                Filtros
+              </div>
+
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 w-full sm:w-auto">
+                {/* Student filter */}
+                <div className="relative w-full sm:w-56">
+                  <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Filtrar por aluno..."
+                    value={studentFilter}
+                    onChange={(e) => setStudentFilter(e.target.value)}
+                    className="w-full pl-9 pr-3 py-2 text-sm border-2 border-black rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+
+                {/* Date From */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-gray-500 whitespace-nowrap">De:</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    onChange={(e) => setDateFrom(e.target.value)}
+                    className="px-3 py-2 text-sm border-2 border-black rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+
+                {/* Date To */}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-gray-500 whitespace-nowrap">Até:</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    onChange={(e) => setDateTo(e.target.value)}
+                    className="px-3 py-2 text-sm border-2 border-black rounded-lg font-body focus:outline-none focus:ring-2 focus:ring-brand"
+                  />
+                </div>
+
+                {/* Clear filters */}
+                {(studentFilter || dateFrom || dateTo) && (
+                  <button
+                    onClick={() => {
+                      setStudentFilter('');
+                      setDateFrom('');
+                      setDateTo('');
+                    }}
+                    className="text-xs font-bold text-red-600 hover:text-red-800 underline underline-offset-2 whitespace-nowrap"
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

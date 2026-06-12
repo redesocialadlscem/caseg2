@@ -1,0 +1,1 @@
+ssh -i "C:\Users\lucas\Desktop\MIAUUUUUUUU\ssh-key-2026-06-11.key" ubuntu@168.138.151.40

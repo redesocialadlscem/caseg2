@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq, sql, and, desc } from 'drizzle-orm';
+import { eq, sql, and, desc, gte, lte } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { certificates, courses, users, progress, lessons, modules } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -13,6 +13,9 @@ const listCertsQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
   search: z.string().optional(),
+  student: z.string().optional(),
+  dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 
 function isAdmin(request: any): boolean {
@@ -35,7 +38,7 @@ export async function adminCertificateRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid query params', details: parsed.error.flatten() });
     }
 
-    const { page, limit, search } = parsed.data;
+    const { page, limit, search, student, dateFrom, dateTo } = parsed.data;
     const offset = (page - 1) * limit;
 
     try {
@@ -45,6 +48,20 @@ export async function adminCertificateRoutes(app: FastifyInstance) {
         conditions.push(
           sql`(${users.name} LIKE ${`%${search}%`} OR ${courses.title} LIKE ${`%${search}%`})`
         );
+      }
+
+      if (student) {
+        conditions.push(sql`${users.name} LIKE ${`%${student}%`}`);
+      }
+
+      if (dateFrom) {
+        conditions.push(gte(certificates.issuedAt, new Date(dateFrom)));
+      }
+
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        conditions.push(lte(certificates.issuedAt, toDate));
       }
 
       const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
@@ -94,6 +111,93 @@ export async function adminCertificateRoutes(app: FastifyInstance) {
     } catch (error) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to fetch certificates' });
+    }
+  });
+
+  // GET /api/admin/certificates/export — export filtered certificates as CSV
+  app.get('/api/admin/certificates/export', async (request, reply) => {
+    const querySchema = z.object({
+      search: z.string().optional(),
+      student: z.string().optional(),
+      dateFrom: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      dateTo: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    });
+
+    const parsed = querySchema.safeParse(request.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid query params', details: parsed.error.flatten() });
+    }
+
+    const { search, student, dateFrom, dateTo } = parsed.data;
+
+    try {
+      const conditions = [];
+
+      if (search) {
+        conditions.push(
+          sql`(${users.name} LIKE ${`%${search}%`} OR ${courses.title} LIKE ${`%${search}%`})`
+        );
+      }
+
+      if (student) {
+        conditions.push(sql`${users.name} LIKE ${`%${student}%`}`);
+      }
+
+      if (dateFrom) {
+        conditions.push(gte(certificates.issuedAt, new Date(dateFrom)));
+      }
+
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        conditions.push(lte(certificates.issuedAt, toDate));
+      }
+
+      const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+      const certs = await db
+        .select({
+          id: certificates.id,
+          studentName: users.name,
+          studentEmail: users.email,
+          courseName: courses.title,
+          issuedAt: certificates.issuedAt,
+          durationHours: courses.durationHours,
+        })
+        .from(certificates)
+        .innerJoin(users, eq(users.id, certificates.userId))
+        .innerJoin(courses, eq(courses.id, certificates.courseId))
+        .where(whereClause)
+        .orderBy(desc(certificates.issuedAt));
+
+      // Build CSV
+      const BOM = '\uFEFF'; // UTF-8 BOM for Excel compatibility
+      const header = 'Código,Aluno,Email,Curso,Data Emissão,Carga Horária (h)';
+      const rows = certs.map((c) => {
+        const code = `CERT-${new Date(c.issuedAt).getFullYear()}-${10000 + Number(c.id)}`;
+        const date = c.issuedAt instanceof Date
+          ? c.issuedAt.toISOString().split('T')[0]
+          : String(c.issuedAt);
+        return [
+          code,
+          `"${(c.studentName ?? '').replace(/"/g, '""')}"`,
+          `"${(c.studentEmail ?? '').replace(/"/g, '""')}"`,
+          `"${(c.courseName ?? '').replace(/"/g, '""')}"`,
+          date,
+          c.durationHours,
+        ].join(',');
+      });
+
+      const csv = BOM + header + '\n' + rows.join('\n');
+      const filename = `certificados_${new Date().toISOString().split('T')[0]}.csv`;
+
+      return reply
+        .header('Content-Type', 'text/csv; charset=utf-8')
+        .header('Content-Disposition', `attachment; filename="${filename}"`)
+        .send(csv);
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to export certificates' });
     }
   });
 
