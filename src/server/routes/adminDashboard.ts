@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { desc, eq, sql, count } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { users, courses, certificates, progress, lessons } from '../db/schema.js';
+import { users, courses, certificates, progress, lessons, modules } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 // ─── Admin guard helper ──────────────────────────────────────────────────────
@@ -74,13 +74,13 @@ export async function adminDashboardRoutes(app: FastifyInstance) {
 
         // Popular courses: top 5 by distinct students with progress
         db.select({
-          courseId: progress.lessonId,
           courseTitle: courses.title,
           studentCount: sql<number>`COUNT(DISTINCT ${progress.userId})`,
         })
           .from(progress)
           .innerJoin(lessons, eq(progress.lessonId, lessons.id))
-          .innerJoin(courses, eq(lessons.moduleId, courses.id))
+          .innerJoin(modules, eq(lessons.moduleId, modules.id))
+          .innerJoin(courses, eq(modules.courseId, courses.id))
           .groupBy(courses.id, courses.title)
           .orderBy(sql`COUNT(DISTINCT ${progress.userId}) DESC`)
           .limit(5),
@@ -117,25 +117,7 @@ export async function adminDashboardRoutes(app: FastifyInstance) {
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
         .slice(0, 8);
 
-      // Fix popular courses: need to join through modules properly
-      // Re-query with correct join chain: progress -> lessons -> modules -> courses
-      const popularCoursesFixed = await db.select({
-        courseTitle: courses.title,
-        studentCount: sql<number>`COUNT(DISTINCT ${progress.userId})`,
-      })
-        .from(progress)
-        .innerJoin(lessons, eq(progress.lessonId, lessons.id))
-        .innerJoin(
-          // Need modules table for proper join
-          sql`(SELECT id, course_id FROM modules) AS m`,
-          sql`${lessons.moduleId} = m.id`
-        )
-        .innerJoin(courses, sql`m.course_id = ${courses.id}`)
-        .groupBy(courses.id, courses.title)
-        .orderBy(sql`COUNT(DISTINCT ${progress.userId}) DESC`)
-        .limit(5);
-
-      const popularCourses = popularCoursesFixed.map((c) => ({
+      const popularCourses = popularCoursesResult.map((c) => ({
         name: c.courseTitle,
         students: Number(c.studentCount),
       }));

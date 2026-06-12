@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 
 export interface User {
-  id: string;
+  id: number;
   email: string;
   name: string;
   role: 'student' | 'admin';

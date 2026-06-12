@@ -84,7 +84,7 @@ export function AdminCoursesPage() {
     } finally {
       setLoading(false);
     }
-  }, [apiFetch]);
+  }, [accessToken]);
 
   useEffect(() => {
     fetchCourses();

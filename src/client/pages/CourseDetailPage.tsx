@@ -14,9 +14,9 @@ interface Course {
   title: string;
   description: string;
   category: string;
-  duration: string;
-  level: string;
+  durationHours: number;
   isActive: boolean;
+  createdAt: string;
 }
 
 export function CourseDetailPage() {
@@ -153,7 +153,7 @@ export function CourseDetailPage() {
                     {course.category}
                   </span>
                   <span className="inline-flex items-center px-3 py-1 bg-emerald-50 text-black text-xs font-bold uppercase tracking-wide border-2 border-black rounded-lg shadow-brutal-sm">
-                    {course.level}
+                    Online
                   </span>
                 </div>
                 
@@ -189,7 +189,7 @@ export function CourseDetailPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold uppercase text-gray-500">Duração</p>
-                  <p className="font-display font-bold">{course.duration}</p>
+                  <p className="font-display font-bold">{course.durationHours}h</p>
                 </div>
               </div>
               
@@ -313,11 +313,11 @@ export function CourseDetailPage() {
                 </div>
                 <div>
                   <dt className="text-xs font-bold uppercase text-gray-500 mb-1">Nível</dt>
-                  <dd className="font-bold text-gray-900">{course.level}</dd>
+                  <dd className="font-bold text-gray-900">Online</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-bold uppercase text-gray-500 mb-1">Carga Horária</dt>
-                  <dd className="font-bold text-gray-900">{course.duration}</dd>
+                  <dd className="font-bold text-gray-900">{course.durationHours}h</dd>
                 </div>
                 <div>
                   <dt className="text-xs font-bold uppercase text-gray-500 mb-1">Idioma</dt>

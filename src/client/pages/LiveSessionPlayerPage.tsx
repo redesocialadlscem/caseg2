@@ -2,10 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LogOut, Clock, User, CheckCircle2, AlertTriangle, 
-  Wifi, WifiOff, PlayCircle, ShieldCheck 
+  Wifi, WifiOff, ShieldCheck 
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+
+// Declaração de tipos para Jitsi Meet External API
+declare global {
+  interface Window {
+    JitsiMeetExternalAPI: any;
+  }
+}
 
 type SessionStatus = 'waiting' | 'live' | 'completed';
 
@@ -27,6 +34,8 @@ export function LiveSessionPlayerPage() {
   const [minDuration, setMinDuration] = useState(3600);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const jitsiContainerRef = useRef<HTMLDivElement>(null);
+  const jitsiApiRef = useRef<any>(null);
 
   // Buscar dados da sessão ao montar
   useEffect(() => {
@@ -86,6 +95,73 @@ export function LiveSessionPlayerPage() {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [status]);
+
+  // Jitsi Meet External API — carrega script e inicializa quando live
+  useEffect(() => {
+    if (status !== 'live' || !jitsiContainerRef.current) return;
+
+    let disposed = false;
+
+    const initJitsi = () => {
+      if (disposed || !jitsiContainerRef.current || jitsiApiRef.current) return;
+
+      const domain = 'meet.jit.si';
+      const roomName = jitsiRoom || `CASEG2-live-${sessionId}`;
+
+      const api = new window.JitsiMeetExternalAPI(domain, {
+        roomName,
+        parentNode: jitsiContainerRef.current,
+        width: '100%',
+        height: '100%',
+        userInfo: {
+          displayName: participantName || 'Aluno',
+        },
+        configOverwrite: {
+          startWithAudioMuted: false,
+          startWithVideoMuted: false,
+          prejoinPageEnabled: false,
+          disableProfilePicture: true,
+          disableDeepLinking: true,
+        },
+        interfaceConfigOverwrite: {
+          SHOW_JITSI_WATERMARK: false,
+          SHOW_WATERMARK_FOR_GUESTS: false,
+          DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'chat', 'raisehand'],
+        },
+      });
+
+      jitsiApiRef.current = api;
+
+      api.addListener('videoConferenceJoined', () => {
+        console.log('[Jitsi] Entrou na sala:', roomName);
+      });
+
+      api.addListener('readyToClose', () => {
+        navigate('/portal-corporativo');
+      });
+    };
+
+    // Carregar script external_api.js dinamicamente se ainda não existir
+    if (window.JitsiMeetExternalAPI) {
+      initJitsi();
+    } else {
+      const script = document.createElement('script');
+      script.src = 'https://meet.jit.si/external_api.js';
+      script.async = true;
+      script.onload = initJitsi;
+      script.onerror = () => console.error('[Jitsi] Falha ao carregar external_api.js');
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      disposed = true;
+      if (jitsiApiRef.current) {
+        try { jitsiApiRef.current.dispose(); } catch { /* ignore */ }
+        jitsiApiRef.current = null;
+      }
+    };
+  }, [status, sessionId, jitsiRoom, participantName, navigate]);
 
   const formatTime = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
@@ -221,16 +297,8 @@ export function LiveSessionPlayerPage() {
       {/* Conteúdo Principal: Grid Responsivo */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
         {/* Área do Vídeo (~70%) */}
-        <main className="flex-1 bg-gray-900 relative flex items-center justify-center min-h-0">
-          {/* Placeholder do Jitsi Embed */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center">
-              <PlayCircle size={64} className="text-gray-700 mx-auto mb-4" />
-              <p className="text-gray-500 font-display font-bold text-lg">Jitsi Meet Embed</p>
-              <p className="text-gray-600 text-sm mt-1">Sala: CASEG2-{sessionId}</p>
-            </div>
-          </div>
-          {/* Em produção: <iframe src={`https://meet.jit.si/CASEG2-${sessionId}`} ... /> */}
+        <main className="flex-1 bg-gray-900 relative min-h-0">
+          <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full" />
         </main>
 
         {/* Barra Lateral de Controles (~30%) */}

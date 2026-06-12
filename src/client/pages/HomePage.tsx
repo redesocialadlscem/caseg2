@@ -72,17 +72,19 @@ function HeroSection() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
           {/* Text Content */}
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 bg-white border-2 border-black rounded-xl shadow-brutal-sm">
-              <span className="font-display font-bold text-xs uppercase tracking-widest text-brand">
-                Plataforma líder em segurança
-              </span>
+            <div className="bg-black/80 border-2 border-white rounded-xl p-6 md:p-8 shadow-[4px_4px_0px_#fff] backdrop-blur-sm">
+              <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 bg-brand border-2 border-white rounded-xl shadow-[2px_2px_0px_#fff]">
+                <span className="font-display font-bold text-xs uppercase tracking-widest text-white">
+                  Plataforma líder em segurança
+                </span>
+              </div>
+              <h1 className="font-display font-bold text-3xl md:text-5xl leading-[1.05] mb-4 text-white">
+                Segurança do Trabalho com <span className="text-emerald-400">Excelência</span>
+              </h1>
+              <p className="font-body text-base md:text-lg text-gray-100 font-medium mb-6 leading-relaxed max-w-xl">
+                Do agronegócio à indústria: treinamentos das principais NRs, com certificação e aulas híbridas na mesma plataforma.
+              </p>
             </div>
-            <h1 className="font-display font-bold text-3xl md:text-5xl leading-[1.05] mb-4">
-              Segurança do Trabalho com <span className="text-brand">Excelência</span>
-            </h1>
-            <p className="font-body text-base md:text-lg text-gray-700 mb-6 leading-relaxed max-w-xl">
-              Do agronegócio à indústria: treinamentos das principais NRs, com certificação e aulas híbridas na mesma plataforma.
-            </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link to="/courses">
                 <Button variant="primary" size="lg" className="w-full sm:w-auto justify-center">

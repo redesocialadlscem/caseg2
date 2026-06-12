@@ -4,13 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server/index.ts",
+    "dev": "node --import tsx --watch src/server/index.ts",
     "dev:client": "vite",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:client\"",
     "build": "tsc -p tsconfig.server.json && vite build",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx src/server/db/migrate.ts",
-    "db:seed": "tsx src/server/db/seed.ts"
+    "db:migrate": "node --import tsx src/server/db/migrate.ts",
+    "db:seed": "node --import tsx src/server/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.0.1",

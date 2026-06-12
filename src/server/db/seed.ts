@@ -64,6 +64,30 @@ const CREATE_TABLES_SQL = [
     source_url TEXT DEFAULT '' NOT NULL,
     published_at INTEGER DEFAULT (unixepoch()) NOT NULL
   )`,
+  `CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY NOT NULL,
+    value TEXT DEFAULT '' NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS live_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    title TEXT NOT NULL,
+    course_name TEXT DEFAULT '' NOT NULL,
+    company_code TEXT NOT NULL,
+    scheduled_at INTEGER NOT NULL,
+    duration_minutes INTEGER DEFAULT 60 NOT NULL,
+    status TEXT DEFAULT 'scheduled' NOT NULL,
+    jitsi_room TEXT DEFAULT '' NOT NULL,
+    created_at INTEGER DEFAULT (unixepoch()) NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS live_session_participants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+    session_id INTEGER NOT NULL REFERENCES live_sessions(id) ON DELETE CASCADE,
+    employee_name TEXT NOT NULL,
+    company_code TEXT NOT NULL,
+    joined_at INTEGER DEFAULT (unixepoch()) NOT NULL,
+    completed_at INTEGER,
+    certificate_issued INTEGER DEFAULT 0 NOT NULL
+  )`,
 ];
 
 interface SeedLesson { title: string; content: string }
