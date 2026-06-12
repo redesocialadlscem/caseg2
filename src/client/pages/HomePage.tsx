@@ -48,100 +48,104 @@ function HeroSection() {
   }, []);
 
   return (
-    <section className="relative z-0 py-10 md:py-16 border-b-2 border-black overflow-hidden" style={{ background: 'linear-gradient(135deg, #0b2b1e 0%, #166534 50%, #4d7c0f 100%)' }}>
-      {/* Background Video with fade-on-loop — muted blend mode to not hide gradient */}
+    <section className="relative z-0 min-h-[600px] flex items-center overflow-hidden">
+      {/* Background Video — full coverage, no blend mode */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
+        loop
         preload="metadata"
         crossOrigin="anonymous"
         aria-hidden="true"
-        style={{
-          position: 'absolute', inset: 0, width: '100%', height: '100%',
-          objectFit: 'cover', zIndex: 0,
-          opacity: 0.3, transition: 'opacity 600ms ease', willChange: 'opacity',
-          mixBlendMode: 'overlay',
-        }}
+        className="absolute inset-0 w-full h-full object-cover z-0"
       >
         <source src="/hero.mp4" type="video/mp4" />
       </video>
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
-          {/* Text Content */}
-          <div className="max-w-2xl">
-            <div className="bg-black/80 border-2 border-white rounded-xl p-6 md:p-8 shadow-[4px_4px_0px_#fff] backdrop-blur-sm">
-              <div className="inline-flex items-center gap-2 mb-4 px-4 py-2 bg-brand border-2 border-white rounded-xl shadow-[2px_2px_0px_#fff]">
-                <span className="font-display font-bold text-xs uppercase tracking-widest text-white">
-                  Plataforma líder em segurança
-                </span>
-              </div>
-              <h1 className="font-display font-bold text-3xl md:text-5xl leading-[1.05] mb-4 text-white">
-                Segurança do Trabalho com <span className="text-emerald-400">Excelência</span>
-              </h1>
-              <p className="font-body text-base md:text-lg text-gray-100 font-medium mb-6 leading-relaxed max-w-xl">
-                Do agronegócio à indústria: treinamentos das principais NRs, com certificação e aulas híbridas na mesma plataforma.
-              </p>
-            </div>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/courses">
-                <Button variant="primary" size="lg" className="w-full sm:w-auto justify-center">
-                  Explorar Cursos
-                </Button>
-              </Link>
-              <a href="#diferenciais">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto justify-center">
-                  Saiba Mais
-                </Button>
-              </a>
-            </div>
+      {/* Gradient Overlay — lateral dark fade like casegprotege */}
+      <div className="absolute inset-0 z-[1] bg-gradient-to-r from-black/80 via-black/60 to-transparent" />
 
-            {/* Trust Indicators */}
-            <div className="mt-6 flex flex-wrap items-center gap-4 text-sm font-body text-gray-800">
-              <div className="inline-flex items-center gap-2 rounded-xl border-2 border-black bg-white px-4 py-2 shadow-brutal-sm">
-                <span className="font-bold">⭐ 4,9/5</span>
-                <span>+3.000 alunos</span>
-              </div>
-              <div className="inline-flex items-center gap-2 rounded-xl border-2 border-black bg-white px-4 py-2 shadow-brutal-sm">
-                <span>Conteúdo prático para aplicar no dia a dia</span>
-              </div>
-            </div>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10 py-20 md:py-28">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          {/* Text Content */}
+          <div className="max-w-3xl">
+          {/* Badge */}
+          <div className="mb-6">
+            <span className="text-xs font-bold uppercase tracking-[0.2em] text-emerald-400">
+              Plataforma líder em segurança
+            </span>
           </div>
 
-          {/* Highlight Card - Solid Brand BG */}
-          <div className="relative">
-            <div className="border-2 border-black bg-brand shadow-brutal rounded-xl text-white p-6">
+          {/* Title */}
+          <h1 className="font-display font-bold text-4xl md:text-6xl text-white leading-[1.1] mb-6">
+            Segurança do Trabalho com <span className="text-emerald-400">Excelência</span>
+          </h1>
+
+          {/* Subtitle */}
+          <p className="font-body text-lg md:text-xl text-white/90 leading-relaxed max-w-2xl mb-10">
+            Do agronegócio à indústria: treinamentos das principais NRs, com certificação e aulas híbridas na mesma plataforma.
+          </p>
+
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Link to="/courses">
+              <button className="bg-brand text-white font-display font-bold text-base px-8 py-4 rounded-full shadow-lg shadow-brand/30 hover:bg-emerald-700 transition-all duration-200 w-full sm:w-auto text-center">
+                Explorar Cursos
+              </button>
+            </Link>
+            <a href="#diferenciais">
+              <button className="border-2 border-white text-white font-display font-bold text-base px-8 py-4 rounded-full hover:bg-white hover:text-black transition-all duration-200 w-full sm:w-auto text-center">
+                Saiba Mais
+              </button>
+            </a>
+          </div>
+
+          {/* Trust Indicators — clean style */}
+          <div className="mt-10 flex flex-wrap items-center gap-6 text-sm font-body text-white/80">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-white">⭐ 4,9/5</span>
+              <span>+3.000 alunos</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span>✓ Conteúdo prático para aplicar no dia a dia</span>
+            </div>
+          </div>
+        </div>
+
+          {/* Highlight Card — clean corporate style */}
+          <div className="hidden lg:block">
+            <div className="rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 p-6">
               <div className="flex items-center justify-between mb-4">
                 <span className="font-display font-bold text-sm uppercase tracking-widest text-white">
                   Cursos em destaque
                 </span>
-                <Link to="/courses" className="rounded-xl border-2 border-black bg-white px-4 py-2 text-xs font-bold uppercase tracking-wide text-black brutal-interactive hover:bg-gray-100">
-                  Ver todos
+                <Link to="/courses" className="text-xs font-bold uppercase tracking-wide text-emerald-400 hover:text-emerald-300 transition-colors">
+                  Ver todos →
                 </Link>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Mini Course Card */}
-                <div className="rounded-xl border-2 border-black bg-white overflow-hidden shadow-brutal-sm">
-                  <div className="relative aspect-video bg-emerald-100 flex items-center justify-center border-b-2 border-black">
+                <div className="rounded-xl bg-white/95 overflow-hidden">
+                  <div className="relative aspect-video bg-emerald-100 flex items-center justify-center">
                     <Badge variant="brand">EPI</Badge>
                   </div>
-                  <div className="p-4 bg-white">
-                    <h3 className="font-display font-bold text-lg uppercase text-black mb-1">Curso de EPI</h3>
+                  <div className="p-4">
+                    <h3 className="font-display font-bold text-base uppercase text-black mb-1">Curso de EPI</h3>
                     <p className="text-xs uppercase tracking-wide text-gray-600 mb-2">2 horas · 3 aulas</p>
                     <div className="flex items-center justify-between">
-                      <span className="font-display font-bold text-base text-brand">R$ 0,30</span>
+                      <span className="font-display font-bold text-sm text-brand">R$ 0,30</span>
                       <Button variant="primary" size="sm" className="text-xs">Matricule-se</Button>
                     </div>
                   </div>
                 </div>
 
                 {/* Info Box */}
-                <div className="rounded-xl border-2 border-black bg-black p-4 text-white shadow-brutal-sm">
-                  <p className="text-xs uppercase tracking-wide text-brand-light">Acesso imediato com certificado digital</p>
-                  <p className="mt-2 font-display font-bold text-xl">Comece seus treinamentos agora</p>
+                <div className="rounded-xl bg-brand p-4 text-white">
+                  <p className="text-xs uppercase tracking-wide text-emerald-200">Acesso imediato com certificado digital</p>
+                  <p className="mt-1 font-display font-bold text-lg">Comece seus treinamentos agora</p>
                 </div>
               </div>
             </div>

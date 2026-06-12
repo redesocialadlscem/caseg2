@@ -105,8 +105,10 @@ export function LiveSessionPlayerPage() {
     const initJitsi = () => {
       if (disposed || !jitsiContainerRef.current || jitsiApiRef.current) return;
 
-      const domain = 'meet.jit.si';
-      const roomName = jitsiRoom || `CASEG2-live-${sessionId}`;
+      // JaaS App ID — sem limite de tempo
+      const JAAS_APP_ID = 'vpaas-magic-cookie-71d242ffa38c4e99bcd9ead502e8355d';
+      const domain = '8x8.vc';
+      const roomName = `${JAAS_APP_ID}/${jitsiRoom || `CASEG2-live-${sessionId}`}`;
 
       const api = new window.JitsiMeetExternalAPI(domain, {
         roomName,
@@ -140,14 +142,20 @@ export function LiveSessionPlayerPage() {
       api.addListener('readyToClose', () => {
         navigate('/portal-corporativo');
       });
+
+      // JaaS: evento específico de desconexão
+      api.addListener('participantLeft', () => {
+        console.log('[JaaS] Participante saiu da sala');
+      });
     };
 
     // Carregar script external_api.js dinamicamente se ainda não existir
     if (window.JitsiMeetExternalAPI) {
       initJitsi();
     } else {
+      const JAAS_APP_ID = 'vpaas-magic-cookie-71d242ffa38c4e99bcd9ead502e8355d';
       const script = document.createElement('script');
-      script.src = 'https://meet.jit.si/external_api.js';
+      script.src = `https://8x8.vc/${JAAS_APP_ID}/external_api.js`;
       script.async = true;
       script.onload = initJitsi;
       script.onerror = () => console.error('[Jitsi] Falha ao carregar external_api.js');
@@ -265,8 +273,8 @@ export function LiveSessionPlayerPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Button onClick={() => navigate('/certificates')} className="flex-1">
-              Ver Certificado
+            <Button onClick={() => navigate('/portal-corporativo')} className="flex-1">
+              Ir ao Portal Corporativo
             </Button>
             <Button variant="outline" onClick={() => navigate('/')} className="flex-1">
               Voltar ao Início
