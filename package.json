@@ -7,7 +7,7 @@
     "dev": "node --import tsx --watch src/server/index.ts",
     "dev:client": "vite",
     "dev:full": "concurrently \"npm run dev\" \"npm run dev:client\"",
-    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.server.json && vite build",
+    "build": "node ./node_modules/typescript/bin/tsc -p tsconfig.server.json && node ./node_modules/vite/bin/vite.js build",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node --import tsx src/server/db/migrate.ts",
     "db:seed": "node --import tsx src/server/db/seed.ts"
