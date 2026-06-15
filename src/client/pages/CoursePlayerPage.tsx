@@ -1,12 +1,13 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   PlayCircle, CheckCircle2, ChevronDown, ChevronRight, 
   Lock, Loader2, AlertTriangle, ArrowLeft, ArrowRight,
-  BookOpen, FileText
+  BookOpen, FileText, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/Button';
+import { EvaluationPanel } from '../components/EvaluationPanel';
 
 // Types matching backend response
 interface Lesson {
@@ -52,6 +53,9 @@ export function CoursePlayerPage() {
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
   const [mobileTab, setMobileTab] = useState<'content' | 'syllabus'>('content');
   const [markingComplete, setMarkingComplete] = useState(false);
+
+  // Evaluation indicators per lesson
+  const [lessonEvalFlags, setLessonEvalFlags] = useState<Record<number, { hasActivity: boolean; hasExam: boolean }>>({});
 
   // Fetch course data
   useEffect(() => {
@@ -104,6 +108,40 @@ export function CoursePlayerPage() {
   const currentIndex = flatLessons.findIndex(l => l.id === activeLessonId);
   const prevLesson = currentIndex > 0 ? flatLessons[currentIndex - 1] : null;
   const nextLesson = currentIndex < flatLessons.length - 1 ? flatLessons[currentIndex + 1] : null;
+
+  // Fetch evaluation flags when active lesson changes (for sidebar indicator)
+  useEffect(() => {
+    if (!activeLessonId || !accessToken || lessonEvalFlags[activeLessonId]) return;
+
+    let cancelled = false;
+    async function checkEvals() {
+      try {
+        const res = await fetch(`/api/lessons/${activeLessonId}/evaluations`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        if (!res.ok || cancelled) return;
+        const json = await res.json();
+        if (!cancelled && json.config) {
+          setLessonEvalFlags((prev) => ({
+            ...prev,
+            [activeLessonId]: {
+              hasActivity: json.config.hasActivity && json.activities?.length > 0,
+              hasExam: json.config.hasExam && json.examQuestions?.length > 0,
+            },
+          }));
+        }
+      } catch {
+        // silent — indicator is optional
+      }
+    }
+    checkEvals();
+    return () => { cancelled = true; };
+  }, [activeLessonId, accessToken]);
+
+  // Navigate to next lesson helper
+  const handleContinueToNext = useCallback(() => {
+    if (nextLesson) setActiveLessonId(nextLesson.id);
+  }, [nextLesson]);
 
   // Handlers
   const toggleModule = (moduleId: number) => {
@@ -320,6 +358,9 @@ export function CoursePlayerPage() {
                             <p className={`text-xs font-medium truncate flex-1 ${isActive ? 'text-white' : 'text-gray-700'}`}>
                               {lesson.title}
                             </p>
+                            {(lessonEvalFlags[lesson.id]?.hasActivity || lessonEvalFlags[lesson.id]?.hasExam) && (
+                              <ClipboardList className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white/80' : 'text-brand'}`} strokeWidth={2.5} />
+                            )}
                           </button>
                         );
                       })}
@@ -422,6 +463,13 @@ export function CoursePlayerPage() {
                   </div>
                 </div>
               )}
+
+              {/* Evaluation Panel (Activity / Exam) */}
+              <EvaluationPanel
+                lessonId={activeLesson.id}
+                accessToken={accessToken!}
+                onContinue={nextLesson ? handleContinueToNext : undefined}
+              />
 
               {/* Navigation Footer */}
               <div className="pt-6 flex items-center justify-between gap-4">

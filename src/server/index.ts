@@ -1,3 +1,5 @@
+import 'dotenv/config';
+// restart trigger
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import { authRoutes } from './routes/auth.js';
@@ -12,6 +14,9 @@ import { adminDashboardRoutes } from './routes/adminDashboard.js';
 import { adminLiveSessionRoutes, handleLiveSessionAccess } from './routes/adminLiveSessions.js';
 import { adminCertificateRoutes } from './routes/adminCertificates.js';
 import { newsRoutes } from './routes/news.js';
+import { paymentRoutes } from './routes/payments.js';
+import { evaluationsRoutes } from './routes/evaluations.js';
+import { forumRoutes } from './routes/forum.js';
 
 const app = Fastify({ logger: true });
 
@@ -34,6 +39,9 @@ async function start() {
   await app.register(adminLiveSessionRoutes);
   await app.register(adminCertificateRoutes);
   await app.register(newsRoutes);
+  await app.register(paymentRoutes);
+  await app.register(evaluationsRoutes);
+  await app.register(forumRoutes);
 
   // Public endpoints (no auth required)
   await handleLiveSessionAccess(app);

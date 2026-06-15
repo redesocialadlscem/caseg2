@@ -4,11 +4,13 @@ import { Button } from '../components/Button';
 import { Input } from '../components/Input';
 import { Card } from '../components/Card';
 import { useAuthContext } from '../context/AuthContext';
-import { UserPlus, Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, UserPlus } from 'lucide-react';
+import { useSiteSettings } from '../hooks/useSiteSettings';
 
 export function RegisterPage() {
   const navigate = useNavigate();
   const { register, error: authError, setError } = useAuthContext();
+  const { siteLogo } = useSiteSettings();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -50,12 +52,17 @@ export function RegisterPage() {
         <div className="rounded-xl border-2 border-black bg-white shadow-brutal overflow-hidden">
           {/* Header sólido - ZERO gradientes conforme DESIGN_SYSTEM */}
           <div className="bg-brand px-8 py-6 border-b-2 border-black">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-xl bg-black text-white border-2 border-black shadow-brutal">
-              <UserPlus size={32} strokeWidth={2.5} />
-            </div>
-            <div className="mt-6 text-center">
-              <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/80">Bem-vindo</p>
-              <h1 className="mt-4 text-4xl sm:text-5xl font-display font-bold uppercase text-white tracking-tight">Cadastro</h1>
+            <div className="flex flex-col items-center gap-4 text-center">
+              <img
+                src={siteLogo}
+                alt="CASEG Logo"
+                className="h-40 w-auto object-contain"
+              />
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.35em] text-white/80">Bem-vindo</p>
+                <h1 className="mt-2 text-4xl sm:text-5xl font-display font-bold uppercase text-white tracking-tight">Cadastro</h1>
+                <p className="mt-2 text-sm font-body text-white/70 font-medium">Portal do Aluno & Segurança</p>
+              </div>
             </div>
           </div>
           <div className="p-8">

@@ -12,6 +12,7 @@ interface AuthContextValue {
   logout: () => void;
   refresh: () => Promise<string | null>;
   setError: (error: string | null) => void;
+  loginWithGoogle: (credential: string) => Promise<User>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

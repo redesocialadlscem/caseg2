@@ -239,6 +239,32 @@ export function useAuth() {
     }
   }, [refreshToken, accessToken, logout]);
 
+  const loginWithGoogle = useCallback(async (credential: string) => {
+    setError(null);
+    try {
+      const res = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ credential }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || 'Falha no login com Google');
+      }
+
+      const data: AuthResponse = await res.json();
+      setUser(data.user);
+      setAccessToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
+      return data.user;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Erro de conexão';
+      setError(message);
+      throw err;
+    }
+  }, []);
+
   return {
     user,
     accessToken,
@@ -250,5 +276,6 @@ export function useAuth() {
     logout,
     refresh,
     setError,
+    loginWithGoogle,
   };
 }

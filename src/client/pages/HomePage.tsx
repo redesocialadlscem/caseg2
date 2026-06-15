@@ -1,13 +1,14 @@
-﻿import { useState, useEffect, useRef } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, Award, Clock, Layers, Menu, X, 
   BookOpen, CheckCircle2, Mail, Phone, MapPin,
-  Globe, MessageSquare, Share2, Loader2
+  Globe, MessageSquare, Share2, Loader2, Search, Filter
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
 import { Card } from '../components/Card';
+import { Input } from '../components/Input';
 import { CourseCard } from '../components/CourseCard';
 import { PublicHeader } from '../components/PublicLayout';
 
@@ -15,8 +16,26 @@ import { PublicHeader } from '../components/PublicLayout';
  * LOCAL COMPONENTS (Specific to Landing Page)
  * ----------------------------------------------------------------------------------------------- */
 
+interface FeaturedCourse {
+  id: number;
+  title: string;
+  description: string;
+  category: string;
+  durationHours: number;
+  imageUrl: string;
+  price: number;
+}
+
 function HeroSection() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [featuredCourses, setFeaturedCourses] = useState<FeaturedCourse[]>([]);
+
+  useEffect(() => {
+    fetch('/api/courses/featured')
+      .then((res) => res.ok ? res.json() : [])
+      .then((data: FeaturedCourse[]) => setFeaturedCourses(data))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -127,20 +146,33 @@ function HeroSection() {
               </div>
 
               <div className="space-y-3">
-                {/* Mini Course Card */}
-                <div className="rounded-xl bg-white/95 overflow-hidden">
-                  <div className="relative aspect-video bg-emerald-100 flex items-center justify-center">
-                    <Badge variant="brand">EPI</Badge>
+                {featuredCourses.length > 0 ? (
+                  featuredCourses.slice(0, 2).map((course) => (
+                    <Link key={course.id} to={`/courses/${course.id}`} className="block rounded-xl bg-white/95 overflow-hidden hover:bg-white transition-colors">
+                      <div className="relative aspect-video bg-emerald-100 flex items-center justify-center overflow-hidden">
+                        {course.imageUrl ? (
+                          <img src={course.imageUrl} alt={course.title} className="w-full h-full object-cover" loading="lazy" />
+                        ) : (
+                          <Badge variant="brand">{course.category}</Badge>
+                        )}
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-display font-bold text-base uppercase text-black mb-1">{course.title}</h3>
+                        <p className="text-xs uppercase tracking-wide text-gray-600 mb-2">{course.durationHours}h de conteúdo</p>
+                        <div className="flex items-center justify-between">
+                          <span className="font-display font-bold text-sm text-brand">
+                            {course.price > 0 ? `R$ ${course.price.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                          </span>
+                          <Button variant="primary" size="sm" className="text-xs">Matricule-se</Button>
+                        </div>
+                      </div>
+                    </Link>
+                  ))
+                ) : (
+                  <div className="rounded-xl bg-white/95 p-6 text-center">
+                    <p className="font-body text-sm text-gray-500">Nenhum curso em destaque no momento</p>
                   </div>
-                  <div className="p-4">
-                    <h3 className="font-display font-bold text-base uppercase text-black mb-1">Curso de EPI</h3>
-                    <p className="text-xs uppercase tracking-wide text-gray-600 mb-2">2 horas · 3 aulas</p>
-                    <div className="flex items-center justify-between">
-                      <span className="font-display font-bold text-sm text-brand">R$ 0,30</span>
-                      <Button variant="primary" size="sm" className="text-xs">Matricule-se</Button>
-                    </div>
-                  </div>
-                </div>
+                )}
 
                 {/* Info Box */}
                 <div className="rounded-xl bg-brand p-4 text-white">
@@ -162,90 +194,177 @@ interface ApiCourse {
   description: string;
   category: string;
   durationHours: number;
+  imageUrl: string;
   isActive: boolean;
   createdAt: string;
 }
 
-function PopularCoursesSection() {
+interface CoursesResponse {
+  courses: ApiCourse[];
+  pagination: { page: number; limit: number; total: number; totalPages: number };
+}
+
+const homeCategories = ['Todos', 'Normas Regulamentadoras', 'Gestão de Segurança', 'Emergências', 'Saúde Ocupacional', 'Meio Ambiente'];
+
+function CoursesSection() {
   const navigate = useNavigate();
+  const [search, setSearch] = useState('');
+  const [activeCategory, setActiveCategory] = useState('Todos');
   const [courses, setCourses] = useState<ApiCourse[]>([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchPopularCourses() {
-      try {
-        const res = await fetch('/api/courses?limit=3');
-        if (!res.ok) throw new Error('Falha ao carregar cursos');
-        const data = await res.json();
-        if (!cancelled) {
-          setCourses(data.courses ?? []);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Erro desconhecido');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+  const fetchCourses = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (search) params.set('search', search);
+      if (activeCategory !== 'Todos') params.set('category', activeCategory);
+      params.set('limit', '12');
+      const res = await fetch(`/api/courses?${params.toString()}`);
+      if (!res.ok) throw new Error('Falha ao carregar cursos');
+      const data: CoursesResponse = await res.json();
+      setCourses(data.courses);
+      setTotal(data.pagination.total);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro desconhecido');
+    } finally {
+      setLoading(false);
     }
-    fetchPopularCourses();
-    return () => { cancelled = true; };
-  }, []);
+  }, [search, activeCategory]);
+
+  useEffect(() => {
+    const debounce = setTimeout(fetchCourses, 300);
+    return () => clearTimeout(debounce);
+  }, [fetchCourses]);
+
+  const getCategoryCount = (cat: string) => {
+    if (cat === 'Todos') return total;
+    return courses.filter((c) => c.category === cat).length;
+  };
 
   return (
-    <section className="py-16 bg-white border-b-2 border-black">
+    <section id="cursos" className="scroll-mt-24 py-16 bg-white border-b-2 border-black">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10 gap-4">
-          <div>
-            <h2 className="font-display font-bold text-3xl md:text-4xl mb-2">Cursos Populares</h2>
-            <p className="font-body text-gray-700">Os treinamentos mais procurados pelos profissionais.</p>
+        {/* Header */}
+        <div className="mb-10 grid gap-6 lg:grid-cols-[1.6fr_0.9fr] items-center">
+          <div className="max-w-2xl">
+            <p className="text-xs uppercase tracking-[0.35em] text-brand">Catálogo de Treinamentos</p>
+            <h2 className="mt-4 text-3xl sm:text-4xl font-display font-bold uppercase tracking-tight leading-tight">
+              Cursos profissionais de segurança do trabalho
+            </h2>
+            <p className="mt-4 text-base text-gray-600 leading-relaxed">
+              Encontre treinamentos especializados, com certificação e conteúdos focados em NRs, brigadas e prevenção.
+            </p>
           </div>
-          <Link 
-            to="/courses" 
-            className="font-display font-bold text-brand hover:text-black underline decoration-2 underline-offset-4 transition-colors"
-          >
-            Ver todos os cursos →
-          </Link>
+          <div className="rounded-3xl border-2 border-black bg-white p-6 shadow-brutal">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand text-white shadow-brutal-sm">
+                <BookOpen size={24} strokeWidth={2.5} />
+              </div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-gray-500">Cursos encontrados</p>
+                <p className="font-display font-bold text-3xl text-black">{loading ? '...' : total}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="rounded-xl border-2 border-black bg-white p-6 shadow-brutal animate-pulse">
-                <div className="aspect-video bg-gray-200 rounded-lg mb-4 border-2 border-black" />
-                <div className="h-6 bg-gray-200 rounded w-3/4 mb-3" />
-                <div className="h-4 bg-gray-200 rounded w-full mb-2" />
-                <div className="h-4 bg-gray-200 rounded w-2/3" />
+        <div className="grid grid-cols-1 xl:grid-cols-[320px_minmax(0,1fr)] gap-8">
+          {/* Sidebar */}
+          <aside className="space-y-6">
+            <Card className="border-2 border-black rounded-xl bg-white p-6 shadow-brutal">
+              <h3 className="font-display font-bold text-xl uppercase tracking-tight mb-4">Áreas de SST</h3>
+              <div className="space-y-3">
+                {homeCategories.map((cat) => (
+                  <button
+                    key={cat}
+                    className={`w-full text-left rounded-xl border-2 px-4 py-3 font-display font-bold text-sm uppercase tracking-wide transition-all ${
+                      activeCategory === cat
+                        ? 'bg-brand text-white border-black shadow-brutal-sm'
+                        : 'bg-white text-black border-black hover:bg-gray-50'
+                    }`}
+                    onClick={() => setActiveCategory(cat)}
+                  >
+                    <span>{cat}</span>
+                    {!loading && <span className="ml-2 text-xs font-medium text-gray-500">{getCategoryCount(cat)}</span>}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="rounded-xl border-2 border-black bg-white p-12 text-center shadow-brutal">
-            <p className="font-body text-gray-700 mb-4">{error}</p>
-            <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-              Tentar novamente
-            </Button>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {courses.map((course) => (
-              <CourseCard
-                key={course.id}
-                id={course.id}
-                title={course.title}
-                description={course.description}
-                category={course.category}
-                durationHours={course.durationHours}
-                progress={0}
-                onClick={() => navigate(`/courses/${course.id}`)}
-              />
-            ))}
-          </div>
-        )}
+            </Card>
+            <Card className="border-2 border-black rounded-xl bg-white p-6 shadow-brutal">
+              <h3 className="font-display font-bold text-xl uppercase tracking-tight mb-4">Dica rápida</h3>
+              <p className="font-body text-sm text-gray-600 leading-relaxed">
+                Use a busca e os filtros por área para encontrar cursos alinhados à norma e à sua rotina de trabalho.
+              </p>
+            </Card>
+          </aside>
+
+          {/* Main Content */}
+          <section>
+            {/* Search + Actions */}
+            <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_0.4fr] gap-6 mb-8">
+              <div className="relative">
+                <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" strokeWidth={2.5} />
+                <Input placeholder="Buscar curso..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+              </div>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" onClick={() => { setSearch(''); setActiveCategory('Todos'); }} className="w-full">Limpar</Button>
+                <Button variant="primary" size="sm" onClick={() => setActiveCategory('Todos')} className="w-full">Tudo</Button>
+              </div>
+            </div>
+
+            {/* Results count */}
+            <div className="flex items-center gap-3 mb-6">
+              <BookOpen size={18} className="text-brand" strokeWidth={2.5} />
+              <p className="font-body text-sm font-medium text-gray-500">
+                {loading ? 'Carregando...' : `${total} ${total === 1 ? 'curso encontrado' : 'cursos encontrados'}`}
+              </p>
+            </div>
+
+            {/* Grid */}
+            {loading ? (
+              <div className="rounded-3xl border-2 border-black bg-white p-16 text-center shadow-brutal">
+                <Loader2 size={40} className="mx-auto text-brand animate-spin mb-4" strokeWidth={2.5} />
+                <p className="font-body text-sm text-gray-600">Carregando cursos...</p>
+              </div>
+            ) : error ? (
+              <div className="rounded-3xl border-2 border-black bg-white p-12 text-center shadow-brutal">
+                <Filter size={40} className="mx-auto text-red-500 mb-4" strokeWidth={2.5} />
+                <h3 className="font-display font-bold text-lg uppercase text-black">Erro ao carregar</h3>
+                <p className="font-body text-sm text-gray-600 mt-2">{error}</p>
+                <Button variant="outline" size="sm" className="mt-6" onClick={fetchCourses}>Tentar novamente</Button>
+              </div>
+            ) : courses.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {courses.map((course) => (
+                  <CourseCard
+                    key={course.id}
+                    id={course.id}
+                    title={course.title}
+                    description={course.description}
+                    category={course.category}
+                    durationHours={course.durationHours}
+                    price={course.price ? `R$ ${course.price.toFixed(2).replace('.', ',')}` : undefined}
+                    priceValue={course.price}
+                    imageUrl={course.imageUrl}
+                    progress={0}
+                    onClick={() => navigate(`/courses/${course.id}`)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="rounded-3xl border-2 border-black bg-white p-12 text-center shadow-brutal">
+                <Filter size={40} className="mx-auto text-brand mb-4" strokeWidth={2.5} />
+                <h3 className="font-display font-bold text-lg uppercase text-black">Nenhum curso encontrado</h3>
+                <p className="font-body text-sm text-gray-600 mt-2">Ajuste os filtros ou a busca para ampliar os resultados.</p>
+                <Button variant="outline" size="sm" className="mt-6" onClick={() => { setSearch(''); setActiveCategory('Todos'); }}>Limpar Filtros</Button>
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </section>
   );
@@ -576,7 +695,7 @@ export function HomePage() {
       <PublicHeader />
       <main>
         <HeroSection />
-        <PopularCoursesSection />
+        <CoursesSection />
         <FeaturesSection />
         <AboutSection />
         <StatsSection />

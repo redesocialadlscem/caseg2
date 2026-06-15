@@ -13,6 +13,32 @@ const listQuerySchema = z.object({
 });
 
 export async function courseRoutes(app: FastifyInstance) {
+  // GET /api/courses/featured — cursos em destaque (rota deve vir ANTES de /api/courses/:id)
+  app.get('/api/courses/featured', async (_request, reply) => {
+    try {
+      const featured = await db
+        .select({
+          id: courses.id,
+          title: courses.title,
+          description: courses.description,
+          category: courses.category,
+          durationHours: courses.durationHours,
+          imageUrl: courses.imageUrl,
+          price: courses.price,
+          isFeatured: courses.isFeatured,
+        })
+        .from(courses)
+        .where(and(eq(courses.isActive, true), eq(courses.isFeatured, true)))
+        .orderBy(desc(courses.createdAt))
+        .limit(6);
+
+      return reply.send(featured);
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to fetch featured courses' });
+    }
+  });
+
   // GET /api/courses — lista pública de cursos ativos
   app.get('/api/courses', async (request, reply) => {
     const parsed = listQuerySchema.safeParse(request.query);

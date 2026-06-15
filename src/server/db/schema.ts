@@ -21,6 +21,9 @@ export const courses = sqliteTable('courses', {
   description: text('description').notNull().default(''),
   category: text('category').notNull().default(''),
   durationHours: real('duration_hours').notNull().default(0),
+  imageUrl: text('image_url').notNull().default(''),
+  price: real('price').notNull().default(0),
+  isFeatured: integer('is_featured', { mode: 'boolean' }).notNull().default(false),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
@@ -122,6 +125,123 @@ export const liveSessionParticipants = sqliteTable('live_session_participants', 
     .default(sql`(unixepoch())`),
   completedAt: integer('completed_at', { mode: 'timestamp' }),
   certificateIssued: integer('certificate_issued', { mode: 'boolean' }).notNull().default(false),
+});
+
+// ─── Exam Questions (Provas) ─────────────────────────────────────────────────
+export const examQuestions = sqliteTable('exam_questions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  lessonId: integer('lesson_id')
+    .notNull()
+    .references(() => lessons.id, { onDelete: 'cascade' }),
+  question: text('question').notNull(),
+  options: text('options').notNull(), // JSON array of strings
+  correctAnswer: integer('correct_answer').notNull(), // index of correct option
+  orderIndex: integer('order_index').notNull().default(0),
+});
+
+// ─── Activities (Atividades Formativas) ──────────────────────────────────────
+export const activities = sqliteTable('activities', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  lessonId: integer('lesson_id')
+    .notNull()
+    .references(() => lessons.id, { onDelete: 'cascade' }),
+  question: text('question').notNull(),
+  options: text('options').notNull(), // JSON array of strings
+  correctAnswer: integer('correct_answer').notNull(), // index of correct option
+  orderIndex: integer('order_index').notNull().default(0),
+});
+
+// ─── Activity Attempts ───────────────────────────────────────────────────────
+export const activityAttempts = sqliteTable('activity_attempts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  activityId: integer('activity_id')
+    .notNull()
+    .references(() => activities.id, { onDelete: 'cascade' }),
+  answers: text('answers').notNull(), // JSON array of selected indices
+  score: real('score').notNull().default(0), // percentage
+  completedAt: integer('completed_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+// ─── Exam Attempts ───────────────────────────────────────────────────────────
+export const examAttempts = sqliteTable('exam_attempts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  lessonId: integer('lesson_id')
+    .notNull()
+    .references(() => lessons.id, { onDelete: 'cascade' }),
+  answers: text('answers').notNull(), // JSON array of selected indices
+  score: real('score').notNull().default(0), // percentage
+  passed: integer('passed', { mode: 'boolean' }).notNull().default(false),
+  timeSpentSeconds: integer('time_spent_seconds').notNull().default(0),
+  completedAt: integer('completed_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+// ─── Lesson Config (timer, passing score, etc.) ──────────────────────────────
+export const lessonConfigs = sqliteTable('lesson_configs', {
+  lessonId: integer('lesson_id')
+    .primaryKey()
+    .references(() => lessons.id, { onDelete: 'cascade' }),
+  hasActivity: integer('has_activity', { mode: 'boolean' }).notNull().default(false),
+  hasExam: integer('has_exam', { mode: 'boolean' }).notNull().default(false),
+  examDurationMinutes: integer('exam_duration_minutes').notNull().default(30),
+  examPassingScore: real('exam_passing_score').notNull().default(70), // percentage
+  activityDurationMinutes: integer('activity_duration_minutes').notNull().default(15),
+});
+
+// ─── Forum Topics ────────────────────────────────────────────────────────────
+export const forumTopics = sqliteTable('forum_topics', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  courseId: integer('course_id')
+    .notNull()
+    .references(() => courses.id, { onDelete: 'cascade' }),
+  authorId: integer('author_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  title: text('title').notNull(),
+  content: text('content').notNull(),
+  isPinned: integer('is_pinned', { mode: 'boolean' }).notNull().default(false),
+  isLocked: integer('is_locked', { mode: 'boolean' }).notNull().default(false),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+// ─── Forum Replies ───────────────────────────────────────────────────────────
+export const forumReplies = sqliteTable('forum_replies', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  topicId: integer('topic_id')
+    .notNull()
+    .references(() => forumTopics.id, { onDelete: 'cascade' }),
+  authorId: integer('author_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  parentReplyId: integer('parent_reply_id'),
+  content: text('content').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+// ─── Forum Likes ─────────────────────────────────────────────────────────────
+export const forumLikes = sqliteTable('forum_likes', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  targetType: text('target_type', { enum: ['topic', 'reply'] }).notNull(),
+  targetId: integer('target_id').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
 });
 
 // ─── Types ───────────────────────────────────────────────────────────────────

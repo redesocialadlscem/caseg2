@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { CartProvider } from './context/CartContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 /* ------------------------------------------------------------------
@@ -23,7 +24,13 @@ const AdminCertificatesPage = lazy(() => import('./pages/admin/AdminCertificates
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
 const AdminLiveSessionsPage = lazy(() => import('./pages/admin/AdminLiveSessionsPage').then(m => ({ default: m.AdminLiveSessionsPage })));
 const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })));
+const AdminLessonEditorPage = lazy(() => import('./pages/admin/AdminLessonEditorPage').then(m => ({ default: m.AdminLessonEditorPage })));
 const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
+const PaymentResultPage = lazy(() => import('./pages/PaymentResultPage').then(m => ({ default: m.PaymentResultPage })));
+const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
+const ForumDashboardPage = lazy(() => import('./pages/ForumDashboardPage').then(m => ({ default: m.ForumDashboardPage })));
+const CourseForumPage = lazy(() => import('./pages/CourseForumPage').then(m => ({ default: m.CourseForumPage })));
+const TopicDetailPage = lazy(() => import('./pages/TopicDetailPage').then(m => ({ default: m.TopicDetailPage })));
 
 function PageLoader() {
   return (
@@ -40,6 +47,7 @@ export function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
+        <CartProvider>
         <Suspense fallback={<PageLoader />}>
         <Routes>
           {/* Public Landing Page */}
@@ -53,6 +61,7 @@ export function App() {
           {/* Public Course Pages */}
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/courses/:id" element={<CourseDetailPage />} />
+          <Route path="/cart" element={<CartPage />} />
           
           {/* Protected Routes */}
           <Route
@@ -125,12 +134,51 @@ export function App() {
           {/* Portal Corporativo (antiga Aula Ao Vivo) */}
           <Route path="/portal-corporativo" element={<CorporatePortalPage />} />
 
+          {/* Admin Lesson Editor */}
+          <Route
+            path="/admin/lessons/:lessonId/edit"
+            element={
+              <ProtectedRoute>
+                <AdminLessonEditorPage />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Admin News */}
           <Route
             path="/admin/news"
             element={
               <ProtectedRoute>
                 <AdminNewsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Payment Results */}
+          <Route path="/payment/:status" element={<PaymentResultPage />} />
+
+          {/* Forum Routes */}
+          <Route
+            path="/forum"
+            element={
+              <ProtectedRoute>
+                <ForumDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forum/:courseId"
+            element={
+              <ProtectedRoute>
+                <CourseForumPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/forum/:courseId/topic/:topicId"
+            element={
+              <ProtectedRoute>
+                <TopicDetailPage />
               </ProtectedRoute>
             }
           />
@@ -150,6 +198,7 @@ export function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         </Suspense>
+        </CartProvider>
       </AuthProvider>
     </BrowserRouter>
   );

@@ -13,6 +13,7 @@ interface ApiCourse {
   description: string;
   category: string;
   durationHours: number;
+  imageUrl: string;
   isActive: boolean;
   createdAt: string;
 }
@@ -213,6 +214,9 @@ export function CoursesPage() {
                     description={course.description}
                     category={course.category}
                     durationHours={course.durationHours}
+                    price={course.price ? `R$ ${course.price.toFixed(2).replace('.', ',')}` : undefined}
+                    priceValue={course.price}
+                    imageUrl={course.imageUrl}
                     progress={0}
                     onClick={() => navigate(`/courses/${course.id}`)}
                   />

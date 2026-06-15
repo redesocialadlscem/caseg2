@@ -10,12 +10,16 @@ const createCourseSchema = z.object({
   title: z.string().min(1),
   category: z.string().min(1),
   description: z.string().min(1),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+  isFeatured: z.boolean().optional(),
 });
 
 const updateCourseSchema = z.object({
   title: z.string().min(1).optional(),
   category: z.string().min(1).optional(),
   description: z.string().min(1).optional(),
+  imageUrl: z.string().url().optional().or(z.literal('')),
+  isFeatured: z.boolean().optional(),
   isActive: z.boolean().optional(),
 });
 
@@ -56,6 +60,8 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         title: courses.title,
         category: courses.category,
         description: courses.description,
+        imageUrl: courses.imageUrl,
+        isFeatured: courses.isFeatured,
         isActive: courses.isActive,
         createdAt: courses.createdAt,
       })

@@ -3,11 +3,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { 
   Clock, BookOpen, Award, ChevronRight, 
   Loader2, AlertTriangle, PlayCircle, FileText,
-  Users, Target, ShieldCheck
+  Users, Target, ShieldCheck, ShoppingCart
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 interface Course {
   id: number;
@@ -15,6 +16,8 @@ interface Course {
   description: string;
   category: string;
   durationHours: number;
+  price: number;
+  imageUrl: string;
   isActive: boolean;
   createdAt: string;
 }
@@ -23,6 +26,7 @@ export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthContext();
+  const { addItem, isInCart } = useCart();
   
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +66,52 @@ export function CourseDetailPage() {
     fetchCourse();
     return () => { cancelled = true; };
   }, [id]);
+
+  const [buying, setBuying] = useState(false);
+  const inCart = course ? isInCart(course.id) : false;
+
+  function handleAddToCart() {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: `/courses/${id}` } } });
+      return;
+    }
+    if (course && course.price > 0) {
+      addItem({ id: course.id, title: course.title, price: course.price, imageUrl: course.imageUrl || '' });
+    }
+  }
+
+  async function handleBuyCourse() {
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: `/courses/${id}` } } });
+      return;
+    }
+    if (!course || course.price <= 0) {
+      navigate(`/courses/${id}/player`);
+      return;
+    }
+
+    setBuying(true);
+    try {
+      const res = await fetch('/api/payments/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: String(course.id) }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Erro ao iniciar pagamento');
+      }
+
+      const data = await res.json();
+      // Redireciona para o checkout do Mercado Pago
+      window.location.href = data.init_point || data.sandbox_init_point;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao processar pagamento');
+    } finally {
+      setBuying(false);
+    }
+  }
 
   function handleStartCourse() {
     if (!isAuthenticated) {
@@ -163,12 +213,37 @@ export function CourseDetailPage() {
               </div>
 
               <div className="flex flex-col gap-3 min-w-[clamp(140px,18vw,200px)]">
-                <Button size="lg" onClick={handleStartCourse} className="w-full">
-                  <span className="flex items-center justify-center gap-2">
-                    <PlayCircle size={20} strokeWidth={2.5} />
-                    {isAuthenticated ? 'Continuar Curso' : 'Começar Curso'}
-                  </span>
-                </Button>
+                {course.price > 0 ? (
+                  <>
+                    <p className="text-center font-display font-bold text-2xl text-brand">
+                      R$ {course.price.toFixed(2).replace('.', ',')}
+                    </p>
+                    <Button size="lg" onClick={handleBuyCourse} disabled={buying} className="w-full">
+                      <span className="flex items-center justify-center gap-2">
+                        {buying ? <Loader2 size={20} className="animate-spin" /> : <ShieldCheck size={20} strokeWidth={2.5} />}
+                        {buying ? 'Processando...' : 'Comprar Agora'}
+                      </span>
+                    </Button>
+                    <Button 
+                      variant={inCart ? "outline" : "secondary"} 
+                      size="lg" 
+                      onClick={handleAddToCart} 
+                      className="w-full"
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <ShoppingCart size={20} strokeWidth={2.5} />
+                        {inCart ? 'No Carrinho' : 'Adicionar ao Carrinho'}
+                      </span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="lg" onClick={handleStartCourse} className="w-full">
+                    <span className="flex items-center justify-center gap-2">
+                      <PlayCircle size={20} strokeWidth={2.5} />
+                      {isAuthenticated ? 'Continuar Curso' : 'Começar Curso'}
+                    </span>
+                  </Button>
+                )}
                 {!isAuthenticated && (
                   <p className="text-xs text-center font-bold uppercase text-gray-500">
                     Login necessário para acessar
@@ -344,9 +419,28 @@ export function CourseDetailPage() {
               </ul>
             </Card>
 
-            <Button size="lg" onClick={handleStartCourse} className="w-full">
-              {isAuthenticated ? 'Ir para Player' : 'Matricular-se Agora'}
-            </Button>
+            {course.price > 0 ? (
+              <div className="space-y-3">
+                <Button size="lg" onClick={handleBuyCourse} disabled={buying} className="w-full">
+                  {buying ? 'Processando...' : `Comprar por R$ ${course.price.toFixed(2).replace('.', ',')}`}
+                </Button>
+                <Button 
+                  variant={inCart ? "outline" : "secondary"} 
+                  size="lg" 
+                  onClick={handleAddToCart} 
+                  className="w-full"
+                >
+                  <span className="flex items-center justify-center gap-2">
+                    <ShoppingCart size={18} strokeWidth={2.5} />
+                    {inCart ? 'No Carrinho' : 'Adicionar ao Carrinho'}
+                  </span>
+                </Button>
+              </div>
+            ) : (
+              <Button size="lg" onClick={handleStartCourse} className="w-full">
+                {isAuthenticated ? 'Ir para Player' : 'Matricular-se Agora'}
+              </Button>
+            )}
           </div>
         </div>
       </div>

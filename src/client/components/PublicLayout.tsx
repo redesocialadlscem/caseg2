@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from './Button';
-import { ShieldCheck, Menu, X, LogOut, LayoutDashboard } from 'lucide-react';
+import { ShieldCheck, Menu, X, LogOut, LayoutDashboard, ShoppingCart } from 'lucide-react';
 import { useAuthContext } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useSiteSettings } from '../hooks/useSiteSettings';
 
 interface PublicLayoutProps {
@@ -11,7 +12,7 @@ interface PublicLayoutProps {
 
 const navLinks = [
   { label: 'Início', href: '/' },
-  { label: 'Cursos', href: '/courses' },
+  { label: 'Cursos', href: '/#cursos' },
   { label: 'Sobre', href: '#sobre' },
   { label: 'Notícias', href: '/news' },
   { label: 'Contato', href: '#contato' },
@@ -20,6 +21,7 @@ const navLinks = [
 export function PublicHeader() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuthContext();
+  const { count } = useCart();
   const { siteLogo } = useSiteSettings();
 
   return (
@@ -50,6 +52,16 @@ export function PublicHeader() {
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
+          <Link to="/cart" className="relative group">
+            <div className="p-2.5 border-2 border-black rounded-xl bg-white shadow-brutal hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-150">
+              <ShoppingCart size={20} className="text-black group-hover:text-brand transition-colors" />
+            </div>
+            {count > 0 && (
+              <span className="absolute -top-2 -right-2 w-5 h-5 bg-brand text-white text-xs font-bold flex items-center justify-center rounded-full border-2 border-black">
+                {count}
+              </span>
+            )}
+          </Link>
           <Link to="/portal-corporativo">
             <button className="bg-emerald-500 text-white font-display font-bold text-sm uppercase tracking-wide px-5 py-2.5 rounded-xl border-2 border-black shadow-brutal hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-brutal-sm active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all duration-150">
               Portal Corporativo

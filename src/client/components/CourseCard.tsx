@@ -1,8 +1,12 @@
 import { memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from './Card';
 import { ProgressBar } from './ProgressBar';
 import { Badge } from './Badge';
-import { Clock, ChevronRight, BookOpen } from 'lucide-react';
+import { Button } from './Button';
+import { Clock, ChevronRight, BookOpen, ShoppingCart, PlayCircle } from 'lucide-react';
+import { useCart } from '../context/CartContext';
+import { useAuthContext } from '../context/AuthContext';
 
 interface CourseCardProps {
   id: string | number;
@@ -11,7 +15,9 @@ interface CourseCardProps {
   category?: string;
   durationHours?: number;
   price?: string;
+  priceValue?: number;
   imageColor?: string;
+  imageUrl?: string;
   progress?: number; // 0-100, undefined = not started
   totalModules?: number;
   completedModules?: number;
@@ -19,32 +25,63 @@ interface CourseCardProps {
 }
 
 export const CourseCard = memo(function CourseCard({
+  id,
   title,
   description,
   category,
   durationHours,
   price,
+  priceValue,
   imageColor,
+  imageUrl,
   progress = 0,
   totalModules,
   completedModules,
   onClick,
 }: CourseCardProps) {
+  const navigate = useNavigate();
+  const { addItem, isInCart } = useCart();
+  const { isAuthenticated } = useAuthContext();
   const isCompleted = progress >= 100;
+  const inCart = typeof id === 'number' && isInCart(id);
+
+  function handleAddToCart(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: `/courses/${id}` } } });
+      return;
+    }
+    if (typeof id === 'number' && priceValue != null) {
+      addItem({ id, title, price: priceValue, imageUrl: imageUrl || '' });
+    }
+  }
+
+  function handleEnroll(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      navigate('/login', { state: { from: { pathname: `/courses/${id}` } } });
+      return;
+    }
+    navigate(`/courses/${id}/player`);
+  }
 
   return (
     <Card
       className="group flex flex-col h-full brutal-interactive cursor-pointer border-2 border-black bg-white shadow-brutal"
       onClick={onClick}
     >
-      {imageColor ? (
-        <div className={`relative aspect-video ${imageColor} border-b-2 border-black flex items-center justify-center overflow-hidden`}>
+      {(imageUrl || imageColor) ? (
+        <div className={`relative aspect-video ${!imageUrl && imageColor ? imageColor : 'bg-gray-100'} border-b-2 border-black flex items-center justify-center overflow-hidden`}>
+          {imageUrl ? (
+            <img src={imageUrl} alt={title} className="w-full h-full object-cover" loading="lazy" />
+          ) : (
+            <BookOpen size={48} className="text-black opacity-20" />
+          )}
           <div className="absolute top-3 left-3">
             {category && (
               <Badge variant="neutral">{category}</Badge>
             )}
           </div>
-          <BookOpen size={48} className="text-black opacity-20" />
         </div>
       ) : (
         category && (
@@ -99,6 +136,37 @@ export const CourseCard = memo(function CourseCard({
           )}
           {price && <span className="font-display font-bold text-lg text-brand">{price}</span>}
         </div>
+        
+        {/* Action Buttons */}
+        {!isCompleted && (
+          <div className="mt-4">
+            {priceValue != null && priceValue > 0 ? (
+              <Button
+                variant={inCart ? "outline" : "primary"}
+                size="sm"
+                className="w-full"
+                onClick={handleAddToCart}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <ShoppingCart size={16} strokeWidth={2.5} />
+                  {inCart ? 'No Carrinho' : 'Adicionar ao Carrinho'}
+                </span>
+              </Button>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                className="w-full"
+                onClick={handleEnroll}
+              >
+                <span className="flex items-center justify-center gap-2">
+                  <PlayCircle size={16} strokeWidth={2.5} />
+                  Matricular-se Agora
+                </span>
+              </Button>
+            )}
+          </div>
+        )}
       </div>
     </Card>
   );

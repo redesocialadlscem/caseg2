@@ -26,6 +26,8 @@ const CREATE_TABLES_SQL = [
     description TEXT DEFAULT '' NOT NULL,
     category TEXT DEFAULT '' NOT NULL,
     duration_hours REAL DEFAULT 0 NOT NULL,
+    image_url TEXT DEFAULT '' NOT NULL,
+    is_featured INTEGER DEFAULT 0 NOT NULL,
     is_active INTEGER DEFAULT 1 NOT NULL,
     created_at INTEGER DEFAULT (unixepoch()) NOT NULL
   )`,
@@ -97,6 +99,7 @@ interface SeedCourse {
   description: string;
   category: string;
   durationHours: number;
+  imageUrl: string;
   modules: SeedModule[];
 }
 
@@ -106,6 +109,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Capacitação obrigatória para profissionais que atuam com eletricidade. Aborda riscos elétricos, medidas de controle, EPIs específicos e procedimentos de emergência conforme a norma regulamentadora.',
     category: 'Normas Regulamentadoras',
     durationHours: 40,
+    imageUrl: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Introdução à NR-10 e Riscos Elétricos', lessons: [
         { title: 'Objetivo e campo de aplicação da NR-10', content: 'A NR-10 estabelece requisitos mínimos para garantir a segurança dos trabalhadores envolvidos com instalações elétricas.' },
@@ -122,6 +126,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Treinamento para atividades realizadas acima de 2 metros do nível inferior. Cobre análise de risco, sistemas de proteção contra quedas, resgate e responsabilidades legais.',
     category: 'Normas Regulamentadoras',
     durationHours: 8,
+    imageUrl: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Fundamentos do Trabalho em Altura', lessons: [
         { title: 'Definições e responsabilidades', content: 'Empregador deve garantir planejamento, organização e execução segura das atividades em altura.' },
@@ -138,6 +143,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Formação completa para membros da CIPA. Aborda atribuições, reuniões, mapa de riscos, SIPAT e investigação de acidentes conforme NR-5 atualizada.',
     category: 'Gestão de Segurança',
     durationHours: 20,
+    imageUrl: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Organização e Atribuições da CIPA', lessons: [
         { title: 'Composição e dimensionamento', content: 'A CIPA é composta por representantes do empregador e dos empregados, dimensionada pelo Quadro I da NR-5.' },
@@ -154,6 +160,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Curso sobre seleção, uso, manutenção e fiscalização de EPIs. Inclui CA (Certificado de Aprovação), responsabilidades do empregador e do trabalhador.',
     category: 'Normas Regulamentadoras',
     durationHours: 8,
+    imageUrl: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Legislação e Responsabilidades', lessons: [
         { title: 'Obrigações do empregador e empregado', content: 'Empregador fornece EPI gratuito com CA válido. Empregado usa, guarda e conserva o equipamento.' },
@@ -170,6 +177,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Elaboração prática do PGR conforme NR-9 e NR-1. Substituiu o PPRA e integra o GRO (Gerenciamento de Riscos Ocupacionais) exigido pelo eSocial.',
     category: 'Gestão de Segurança',
     durationHours: 16,
+    imageUrl: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'GRO e Estrutura do PGR', lessons: [
         { title: 'Diferença entre PPRA e PGR', content: 'O PGR é mais abrangente: cobre todos os riscos (físicos, químicos, biológicos, ergonômicos e de acidentes), não apenas ambientais.' },
@@ -186,6 +194,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Capacitação para entrada, supervisão e resgate em espaços confinados. Aborda atmosfera perigosa, ventilação, medição de gases e plano de emergência.',
     category: 'Normas Regulamentadoras',
     durationHours: 16,
+    imageUrl: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Reconhecimento e Avaliação', lessons: [
         { title: 'Definição e exemplos de espaços confinados', content: 'Tanques, silos, poços, tubulações, caldeiras e qualquer área com aberturas limitadas e ventilação insuficiente.' },
@@ -202,6 +211,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Formação de brigadistas conforme NBR 14276 e IT do Corpo de Bombeiros. Teoria do fogo, classes de incêndio, uso de extintores e hidrantes, abandono de área.',
     category: 'Emergências',
     durationHours: 12,
+    imageUrl: 'https://images.unsplash.com/photo-1563214814-c10427b3b31e?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Teoria do Fogo e Classes de Incêndio', lessons: [
         { title: 'Tetraedro do fogo e métodos de extinção', content: 'Combustível, comburente, calor e reação em cadeia. Métodos: resfriamento, abafamento, isolamento e interrupção química.' },
@@ -218,6 +228,7 @@ const SEED_DATA: SeedCourse[] = [
     description: 'Atendimento básico de emergências médicas no ambiente de trabalho. Suporte básico de vida, hemorragias, fraturas, queimaduras e protocolo de acionamento.',
     category: 'Emergências',
     durationHours: 8,
+    imageUrl: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&h=400&fit=crop&q=80',
     modules: [
       { title: 'Suporte Básico de Vida', lessons: [
         { title: 'Avaliação primária (ABCDE)', content: 'Via aérea, respiração, circulação, déficit neurológico e exposição. Sequência lógica de atendimento.' },
@@ -254,8 +265,8 @@ async function seed() {
     }
 
     const result = await client.execute({
-      sql: 'INSERT INTO courses (title, description, category, duration_hours, is_active) VALUES (?, ?, ?, ?, 1)',
-      args: [course.title, course.description, course.category, course.durationHours],
+      sql: 'INSERT INTO courses (title, description, category, duration_hours, image_url, is_featured, is_active) VALUES (?, ?, ?, ?, ?, 0, 1)',
+      args: [course.title, course.description, course.category, course.durationHours, course.imageUrl],
     });
     const courseId = Number(result.lastInsertRowid);
     console.log(`✅ Created course: ${course.title} (id=${courseId})`);

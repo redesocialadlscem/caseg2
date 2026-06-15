@@ -27,6 +27,8 @@ interface Course {
   title: string;
   category: string;
   description: string;
+  imageUrl: string;
+  isFeatured: boolean;
   isActive: boolean;
   createdAt: string;
 }
@@ -42,6 +44,8 @@ interface CourseFormData {
   title: string;
   category: string;
   description: string;
+  imageUrl: string;
+  isFeatured: boolean;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -60,6 +64,8 @@ export function AdminCoursesPage() {
     title: '',
     category: '',
     description: '',
+    imageUrl: '',
+    isFeatured: false,
   });
   const [formErrors, setFormErrors] = useState<Partial<CourseFormData>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -101,7 +107,7 @@ export function AdminCoursesPage() {
   // ─── Course CRUD ─────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingCourse(null);
-    setFormData({ title: '', category: '', description: '' });
+    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -112,6 +118,8 @@ export function AdminCoursesPage() {
       title: course.title,
       category: course.category,
       description: course.description,
+      imageUrl: course.imageUrl || '',
+      isFeatured: course.isFeatured || false,
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -359,6 +367,11 @@ export function AdminCoursesPage() {
                           >
                             {course.isActive ? 'Ativo' : 'Inativo'}
                           </span>
+                          {course.isFeatured && (
+                            <span className="shrink-0 px-2.5 py-0.5 text-xs font-bold uppercase tracking-wide border-2 border-black rounded-md bg-yellow-400 text-black">
+                              ⭐ Destaque
+                            </span>
+                          )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-500 mb-3">
                           <span className="font-bold text-brand uppercase tracking-wide text-xs">
@@ -558,6 +571,29 @@ export function AdminCoursesPage() {
                 }
                 error={formErrors.category}
               />
+
+              <Input
+                label="URL da Imagem de Capa"
+                placeholder="https://images.unsplash.com/..."
+                value={formData.imageUrl}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, imageUrl: e.target.value }))
+                }
+              />
+
+              <label className="flex items-center gap-3 cursor-pointer select-none p-3 border-2 border-black rounded-xl bg-white hover:bg-gray-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={formData.isFeatured}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, isFeatured: e.target.checked }))
+                  }
+                  className="w-5 h-5 accent-brand border-2 border-black rounded"
+                />
+                <span className="font-display font-bold text-sm uppercase tracking-wide">
+                  ⭐ Curso em Destaque
+                </span>
+              </label>
 
               <div className="flex flex-col gap-1.5 w-full">
                 <label
