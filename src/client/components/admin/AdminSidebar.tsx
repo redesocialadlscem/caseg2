@@ -11,7 +11,8 @@ import {
   X,
   ShieldCheck,
   Video,
-  Newspaper
+  Newspaper,
+  Zap
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -25,6 +26,7 @@ const navItems = [
   { label: 'Certificados', path: '/admin/certificates', icon: Award },
   { label: 'Notícias', path: '/admin/news', icon: Newspaper },
   { label: 'Portal Corporativo', path: '/admin/live-sessions', icon: Video },
+  { label: 'Banco de Interações', path: '/admin/interactions', icon: Zap },
   { label: 'Configurações', path: '/admin/settings', icon: Settings },
 ];
 

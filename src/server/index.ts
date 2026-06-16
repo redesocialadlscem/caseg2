@@ -17,6 +17,7 @@ import { newsRoutes } from './routes/news.js';
 import { paymentRoutes } from './routes/payments.js';
 import { evaluationsRoutes } from './routes/evaluations.js';
 import { forumRoutes } from './routes/forum.js';
+import { interactionsRoutes } from './routes/interactions.js';
 
 const app = Fastify({ logger: true });
 
@@ -42,6 +43,7 @@ async function start() {
   await app.register(paymentRoutes);
   await app.register(evaluationsRoutes);
   await app.register(forumRoutes);
+  await app.register(interactionsRoutes);
 
   // Public endpoints (no auth required)
   await handleLiveSessionAccess(app);

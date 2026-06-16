@@ -59,6 +59,10 @@ temp-downloads/
 *.pfx
 id_rsa*
 *.pem
+*.pk
+*.pub
+key.pk
+key.pub
 
 # IDE
 .vscode/

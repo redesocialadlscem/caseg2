@@ -294,6 +294,64 @@ export const forumLikes = sqliteTable('forum_likes', {
     .default(sql`(unixepoch())`),
 });
 
+// ─── Interactions (Banco de Interações — Aula Interativa) ────────────────────
+export const interactions = sqliteTable('interactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  type: text('type', { enum: ['quiz', 'truefalse', 'poll'] }).notNull(),
+  question: text('question').notNull(),
+  options: text('options').notNull().default('[]'), // JSON array de strings
+  correctAnswer: integer('correct_answer'), // índice da correta; null para enquete
+  timeLimitSeconds: integer('time_limit_seconds').notNull().default(20),
+  category: text('category').notNull().default(''),
+  createdBy: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+// ─── Session Interactions (interações ativadas numa aula) ────────────────────
+export const sessionInteractions = sqliteTable('session_interactions', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: integer('session_id')
+    .notNull()
+    .references(() => liveSessions.id, { onDelete: 'cascade' }),
+  interactionId: integer('interaction_id')
+    .notNull()
+    .references(() => interactions.id, { onDelete: 'cascade' }),
+  status: text('status', { enum: ['pending', 'open', 'closed'] }).notNull().default('pending'),
+  orderIndex: integer('order_index').notNull().default(0),
+  openedAt: integer('opened_at', { mode: 'timestamp' }),
+  closedAt: integer('closed_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+});
+
+// ─── Interaction Responses ───────────────────────────────────────────────────
+export const interactionResponses = sqliteTable(
+  'interaction_responses',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    sessionInteractionId: integer('session_interaction_id')
+      .notNull()
+      .references(() => sessionInteractions.id, { onDelete: 'cascade' }),
+    participantName: text('participant_name').notNull(),
+    answer: integer('answer').notNull(), // índice da opção escolhida
+    isCorrect: integer('is_correct', { mode: 'boolean' }),
+    responseMs: integer('response_ms').notNull().default(0),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => ({
+    // Antifraude: uma resposta por participante por ativação
+    uniqueResponse: uniqueIndex('interaction_responses_unique').on(
+      table.sessionInteractionId,
+      table.participantName,
+    ),
+  }),
+);
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
@@ -318,6 +376,15 @@ export type NewEnrollment = typeof enrollments.$inferInsert;
 
 export type Payment = typeof payments.$inferSelect;
 export type NewPayment = typeof payments.$inferInsert;
+
+export type Interaction = typeof interactions.$inferSelect;
+export type NewInteraction = typeof interactions.$inferInsert;
+
+export type SessionInteraction = typeof sessionInteractions.$inferSelect;
+export type NewSessionInteraction = typeof sessionInteractions.$inferInsert;
+
+export type InteractionResponse = typeof interactionResponses.$inferSelect;
+export type NewInteractionResponse = typeof interactionResponses.$inferInsert;
 
 export type News = typeof news.$inferSelect;
 export type NewNews = typeof news.$inferInsert;

@@ -7,6 +7,8 @@ import {
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { useAuthContext } from '../context/AuthContext';
+import { StudentInteractionPanel } from '../components/live/StudentInteractionPanel';
+import { TeacherInteractionPanel } from '../components/live/TeacherInteractionPanel';
 
 // JaaS App ID padrão (público) — usado como fallback quando o backend não
 // devolve um appId (credenciais do JaaS não configuradas).
@@ -371,6 +373,13 @@ export function LiveSessionPlayerPage() {
               </div>
             </div>
           </div>
+
+          {/* Interações ao vivo — painel do professor (admin) ou do aluno */}
+          {sessionId && (
+            (!!accessToken && user?.role === 'admin')
+              ? <TeacherInteractionPanel sessionId={Number(sessionId)} accessToken={accessToken} />
+              : <StudentInteractionPanel sessionId={Number(sessionId)} participantName={participantName} />
+          )}
 
           {/* Timer */}
           <div className="p-5 border-b-2 border-black">

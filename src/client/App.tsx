@@ -25,6 +25,7 @@ const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage').t
 const AdminLiveSessionsPage = lazy(() => import('./pages/admin/AdminLiveSessionsPage').then(m => ({ default: m.AdminLiveSessionsPage })));
 const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })));
 const AdminLessonEditorPage = lazy(() => import('./pages/admin/AdminLessonEditorPage').then(m => ({ default: m.AdminLessonEditorPage })));
+const AdminInteractionsPage = lazy(() => import('./pages/admin/AdminInteractionsPage').then(m => ({ default: m.AdminInteractionsPage })));
 const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
 const PaymentResultPage = lazy(() => import('./pages/PaymentResultPage').then(m => ({ default: m.PaymentResultPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
@@ -150,6 +151,16 @@ export function App() {
             element={
               <ProtectedRoute>
                 <AdminNewsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin Banco de Interações */}
+          <Route
+            path="/admin/interactions"
+            element={
+              <ProtectedRoute>
+                <AdminInteractionsPage />
               </ProtectedRoute>
             }
           />
