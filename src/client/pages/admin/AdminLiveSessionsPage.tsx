@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Video, Plus, Calendar, Clock, Building2, Users,
   Award, CheckCircle2, XCircle, PlayCircle, Download,
-  Send, ChevronRight, ShieldCheck, MoreHorizontal, LogIn
+  Send, ChevronRight, ShieldCheck, MoreHorizontal, LogIn, BarChart3
 } from 'lucide-react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -305,10 +305,17 @@ export function AdminLiveSessionsPage() {
                               <Button variant="danger" size="sm" className="!py-1.5 !px-3 !text-xs" onClick={() => handleStatusChange(session.id, 'completed')}>
                                 Encerrar
                               </Button>
+                              <Button variant="secondary" size="sm" className="!py-1.5 !px-3 !text-xs" onClick={() => navigate(`/admin/live-sessions/${session.id}/analytics`)}>
+                                <BarChart3 size={12} className="mr-1" />
+                                Relatório
+                              </Button>
                             </div>
                           )}
                           {session.status === 'completed' && (
-                            <span className="text-xs text-gray-400 font-medium">Concluída</span>
+                            <Button variant="secondary" size="sm" className="!py-1.5 !px-3 !text-xs" onClick={() => navigate(`/admin/live-sessions/${session.id}/analytics`)}>
+                              <BarChart3 size={12} className="mr-1" />
+                              Relatório
+                            </Button>
                           )}
                         </td>
                       </tr>

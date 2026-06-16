@@ -25,6 +25,7 @@ const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage').t
 const AdminLiveSessionsPage = lazy(() => import('./pages/admin/AdminLiveSessionsPage').then(m => ({ default: m.AdminLiveSessionsPage })));
 const AdminLessonEditorPage = lazy(() => import('./pages/admin/AdminLessonEditorPage').then(m => ({ default: m.AdminLessonEditorPage })));
 const AdminInteractionsPage = lazy(() => import('./pages/admin/AdminInteractionsPage').then(m => ({ default: m.AdminInteractionsPage })));
+const AdminLiveAnalyticsPage = lazy(() => import('./pages/admin/AdminLiveAnalyticsPage').then(m => ({ default: m.AdminLiveAnalyticsPage })));
 const ContactPage = lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 const PaymentResultPage = lazy(() => import('./pages/PaymentResultPage').then(m => ({ default: m.PaymentResultPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
@@ -190,6 +191,14 @@ export function App() {
             element={
               <ProtectedRoute>
                 <AdminLiveSessionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/live-sessions/:sessionId/analytics"
+            element={
+              <ProtectedRoute>
+                <AdminLiveAnalyticsPage />
               </ProtectedRoute>
             }
           />

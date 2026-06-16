@@ -25,13 +25,10 @@ export interface RankingEntry {
   attention: number; // 0-100
 }
 
-/**
- * Calcula o ranking/pontuação de uma sessão a partir das respostas e participantes.
- * Reutilizado pelo ranking ao vivo e pelo analytics pós-aula.
- */
-export async function computeSessionRanking(
-  sessionId: number,
-): Promise<{ released: number; ranking: RankingEntry[] }> {
+interface ParticipantAgg { name: string; answered: number; correct: number; fast: number; totalMs: number; }
+
+/** Agrega respostas + participantes de uma sessão — base do ranking e do analytics. */
+async function aggregateSession(sessionId: number): Promise<{ released: number; aggs: ParticipantAgg[] }> {
   const releasedRows = await db
     .select({ id: sessionInteractions.id })
     .from(sessionInteractions)
@@ -53,9 +50,8 @@ export async function computeSessionRanking(
     .from(liveSessionParticipants)
     .where(eq(liveSessionParticipants.sessionId, sessionId));
 
-  interface Acc { name: string; answered: number; correct: number; fast: number; totalMs: number; }
-  const map = new Map<string, Acc>();
-  const ensure = (name: string): Acc => {
+  const map = new Map<string, ParticipantAgg>();
+  const ensure = (name: string): ParticipantAgg => {
     let e = map.get(name);
     if (!e) { e = { name, answered: 0, correct: 0, fast: 0, totalMs: 0 }; map.set(name, e); }
     return e;
@@ -68,25 +64,94 @@ export async function computeSessionRanking(
     if ((r.responseMs || 0) < SCORE.fastThresholdMs) e.fast++;
     e.totalMs += r.responseMs || 0;
   }
+  return { released, aggs: [...map.values()] };
+}
 
-  const ranking: RankingEntry[] = [...map.values()].map((e) => {
-    const ignored = Math.max(0, released - e.answered);
-    const points = SCORE.join + e.answered * SCORE.answer + e.correct * SCORE.correct + e.fast * SCORE.fast + ignored * SCORE.ignore;
-    const respondedPct = released ? Math.min(1, e.answered / released) : 0;
-    const correctPct = e.answered ? e.correct / e.answered : 0;
-    const attention = Math.round((respondedPct * 0.7 + correctPct * 0.3) * 100);
+/** Pontos + score de atenção de um participante (compartilhado por ranking e analytics). */
+function scoreParticipant(e: ParticipantAgg, released: number) {
+  const ignored = Math.max(0, released - e.answered);
+  const points = SCORE.join + e.answered * SCORE.answer + e.correct * SCORE.correct + e.fast * SCORE.fast + ignored * SCORE.ignore;
+  const respondedPct = released ? Math.min(1, e.answered / released) : 0;
+  const correctPct = e.answered ? e.correct / e.answered : 0;
+  const attention = Math.round((respondedPct * 0.7 + correctPct * 0.3) * 100);
+  const responseRatePct = released ? Math.round((e.answered / released) * 100) : 0;
+  const avgMs = e.answered ? Math.round(e.totalMs / e.answered) : 0;
+  return { points, attention, responseRatePct, avgMs };
+}
+
+/**
+ * Calcula o ranking/pontuação de uma sessão a partir das respostas e participantes.
+ * Reutilizado pelo ranking ao vivo e pelo analytics pós-aula.
+ */
+export async function computeSessionRanking(
+  sessionId: number,
+): Promise<{ released: number; ranking: RankingEntry[] }> {
+  const { released, aggs } = await aggregateSession(sessionId);
+  const ranking: RankingEntry[] = aggs.map((e) => {
+    const s = scoreParticipant(e, released);
+    return { name: e.name, answered: e.answered, correct: e.correct, fast: e.fast, avgMs: s.avgMs, points: s.points, attention: s.attention };
+  }).sort((a, b) => b.points - a.points);
+  return { released, ranking };
+}
+
+// ─── Analytics pós-aula (5.4) ────────────────────────────────────────────────
+export interface SessionAnalytics {
+  released: number;
+  turma: {
+    participants: number;
+    interactionsReleased: number;
+    responseRatePct: number;   // taxa média de resposta da turma
+    correctRatePct: number;    // taxa média de acerto da turma
+    avgResponseMs: number;     // tempo médio de resposta
+  };
+  alunos: Array<{
+    name: string;
+    received: number;          // interações recebidas (= released)
+    answered: number;          // respondidas
+    correct: number;           // acertos
+    errors: number;            // erros
+    responseRatePct: number;
+    attention: number;         // score de atenção 0-100
+    avgMs: number;
+    points: number;
+  }>;
+}
+
+/** Relatório pós-aula: visão da turma + visão individual. */
+export async function computeSessionAnalytics(sessionId: number): Promise<SessionAnalytics> {
+  const { released, aggs } = await aggregateSession(sessionId);
+  const participants = aggs.length;
+  const answeredTotal = aggs.reduce((s, a) => s + a.answered, 0);
+  const correctTotal = aggs.reduce((s, a) => s + a.correct, 0);
+  const totalMs = aggs.reduce((s, a) => s + a.totalMs, 0);
+  const possible = released * participants; // respostas possíveis se todos respondessem tudo
+
+  const alunos = aggs.map((e) => {
+    const s = scoreParticipant(e, released);
     return {
       name: e.name,
+      received: released,
       answered: e.answered,
       correct: e.correct,
-      fast: e.fast,
-      avgMs: e.answered ? Math.round(e.totalMs / e.answered) : 0,
-      points,
-      attention,
+      errors: e.answered - e.correct,
+      responseRatePct: s.responseRatePct,
+      attention: s.attention,
+      avgMs: s.avgMs,
+      points: s.points,
     };
   }).sort((a, b) => b.points - a.points);
 
-  return { released, ranking };
+  return {
+    released,
+    turma: {
+      participants,
+      interactionsReleased: released,
+      responseRatePct: possible ? Math.round((answeredTotal / possible) * 100) : 0,
+      correctRatePct: answeredTotal ? Math.round((correctTotal / answeredTotal) * 100) : 0,
+      avgResponseMs: answeredTotal ? Math.round(totalMs / answeredTotal) : 0,
+    },
+    alunos,
+  };
 }
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
@@ -342,6 +407,14 @@ export async function interactionsRoutes(app: FastifyInstance) {
     const idP = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
     if (!idP.success) return reply.status(400).send({ error: 'Invalid session id' });
     const data = await computeSessionRanking(idP.data.id);
+    return reply.send(data);
+  });
+
+  // GET /api/admin/live-sessions/:id/analytics — relatório pós-aula (turma + individual)
+  app.get('/api/admin/live-sessions/:id/analytics', { preHandler: adminGuard }, async (request, reply) => {
+    const idP = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!idP.success) return reply.status(400).send({ error: 'Invalid session id' });
+    const data = await computeSessionAnalytics(idP.data.id);
     return reply.send(data);
   });
 
