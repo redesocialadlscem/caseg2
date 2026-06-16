@@ -54,6 +54,7 @@ export function AdminLiveSessionsPage() {
 
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [issuingKey, setIssuingKey] = useState<string | null>(null);
+  const [issuingAll, setIssuingAll] = useState(false);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
 
   // ID da sessão selecionada (para download em massa)
@@ -150,6 +151,34 @@ export function AdminLiveSessionsPage() {
 
   const sessionTitle = (id: number) => sessions.find(s => s.id === id)?.title || `Aula #${id}`;
 
+  // Emite de uma vez todos os pendentes que cumprem as regras (sem forçar).
+  const issueAllEligible = async () => {
+    const pending = participants.filter(p => !p.certificateIssued);
+    if (pending.length === 0) return;
+    if (!confirm(`Emitir certificado para os participantes aprovados?\n\nSerão avaliados ${pending.length} pendente(s). Quem não cumprir as regras de certificação será ignorado.`)) return;
+    setIssuingAll(true);
+    let issued = 0, blocked = 0, failed = 0;
+    for (const p of pending) {
+      try {
+        const res = await fetch(`/api/admin/live-sessions/${p.sessionId}/complete`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({ employeeName: p.employeeName, companyCode: p.companyCode }), // sem force
+        });
+        if (res.ok) issued++;
+        else if (res.status === 409) blocked++;
+        else failed++;
+      } catch { failed++; }
+    }
+    await fetchAllParticipants();
+    setIssuingAll(false);
+    alert(
+      `✅ ${issued} certificado(s) emitido(s).` +
+      (blocked ? `\n⛔ ${blocked} ignorado(s) — não cumprem as regras.` : '') +
+      (failed ? `\n⚠️ ${failed} com erro.` : ''),
+    );
+  };
+
   const handleCreate = async () => {
     if (!createForm.title || !createForm.companyCode || !createForm.date) return;
     const scheduledAt = new Date(`${createForm.date}T${createForm.time || '09:00'}`).toISOString();
@@ -190,6 +219,7 @@ export function AdminLiveSessionsPage() {
   const participantsSorted = [...participants].sort(
     (a, b) => Number(a.certificateIssued) - Number(b.certificateIssued),
   );
+  const pendingCount = participants.filter(p => !p.certificateIssued).length;
   const upcomingCount = sessions.filter(s => s.status === 'scheduled').length;
   const certifiedCount = certificates.length;
   const completedSessions = sessions.filter(s => s.status === 'completed');
@@ -376,18 +406,30 @@ export function AdminLiveSessionsPage() {
                   <Award size={20} />
                 </div>
                 <div>
-                  <p className="font-display font-bold text-sm uppercase tracking-wide">Download em Massa</p>
-                  <p className="text-xs text-gray-600">Baixe todos os certificados desta aula em um único ZIP</p>
+                  <p className="font-display font-bold text-sm uppercase tracking-wide">Certificados da Turma</p>
+                  <p className="text-xs text-gray-600">Emita os aprovados de uma vez e baixe todos em um único ZIP</p>
                 </div>
               </div>
-              <Button
-                onClick={handleBulkDownload}
-                disabled={downloadingZip || certificates.length === 0}
-                className="gap-2 !py-2.5"
-              >
-                <Download size={18} />
-                {downloadingZip ? 'Gerando ZIP...' : `Baixar Todos (${certificates.length})`}
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Button
+                  variant="primary"
+                  onClick={issueAllEligible}
+                  disabled={issuingAll || pendingCount === 0}
+                  className="gap-2 !py-2.5"
+                >
+                  <Award size={18} />
+                  {issuingAll ? 'Emitindo…' : `Emitir Aprovados (${pendingCount})`}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleBulkDownload}
+                  disabled={downloadingZip || certificates.length === 0}
+                  className="gap-2 !py-2.5"
+                >
+                  <Download size={18} />
+                  {downloadingZip ? 'Gerando ZIP...' : `Baixar Todos (${certificates.length})`}
+                </Button>
+              </div>
             </div>
 
             <div className="border-2 border-black rounded-xl shadow-brutal overflow-hidden bg-white">
