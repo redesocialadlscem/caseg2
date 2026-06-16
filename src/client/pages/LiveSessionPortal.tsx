@@ -46,8 +46,8 @@ export function LiveSessionPortal() {
       // Redirecionar após breve delay visual
       setTimeout(() => {
         navigate(`/live/${data.sessionId}`, {
-          state: { 
-            participantName: data.participantName, 
+          state: {
+            participantName: data.participantName,
             jitsiRoom: data.jitsiRoom,
             waitingRoom: data.waitingRoom === true,
           },

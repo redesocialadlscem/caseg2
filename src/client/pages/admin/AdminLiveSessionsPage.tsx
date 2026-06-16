@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Video, Plus, Calendar, Clock, Building2, Users,
   Award, CheckCircle2, XCircle, PlayCircle, Download,
-  Send, ChevronRight, ShieldCheck, MoreHorizontal, LogIn, BarChart3
+  ChevronRight, ShieldCheck, MoreHorizontal, LogIn, BarChart3
 } from 'lucide-react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -53,6 +53,7 @@ export function AdminLiveSessionsPage() {
   const [createForm, setCreateForm] = useState({ title: '', courseName: '', companyCode: '', date: '', time: '', duration: '60' });
 
   const [downloadingZip, setDownloadingZip] = useState(false);
+  const [issuingKey, setIssuingKey] = useState<string | null>(null);
   const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` };
 
   // ID da sessão selecionada (para download em massa)
@@ -97,23 +98,57 @@ export function AdminLiveSessionsPage() {
 
   useEffect(() => { fetchSessions(); }, [fetchSessions]);
 
-  // Carregar participantes de todas as sessões concluídas para aba certificados
-  useEffect(() => {
-    async function fetchAllParticipants() {
-      const all: Participant[] = [];
-      for (const s of sessions) {
-        try {
-          const res = await fetch(`/api/admin/live-sessions/${s.id}/participants`, { headers });
-          if (res.ok) {
-            const data = await res.json();
-            all.push(...(data.participants || []));
-          }
-        } catch { /* ignore */ }
-      }
-      setParticipants(all);
+  // Carregar participantes de todas as sessões (para a aba certificados)
+  const fetchAllParticipants = useCallback(async () => {
+    const all: Participant[] = [];
+    for (const s of sessions) {
+      try {
+        const res = await fetch(`/api/admin/live-sessions/${s.id}/participants`, { headers });
+        if (res.ok) {
+          const data = await res.json();
+          all.push(...(data.participants || []));
+        }
+      } catch { /* ignore */ }
     }
-    if (sessions.length > 0) fetchAllParticipants();
+    setParticipants(all);
   }, [sessions, accessToken]);
+
+  useEffect(() => {
+    if (sessions.length > 0) fetchAllParticipants();
+  }, [sessions, fetchAllParticipants]);
+
+  // Emite o certificado de um participante (respeita o gate de regras; força com confirmação)
+  const issueCertificate = async (p: Participant, force = false) => {
+    const key = `${p.sessionId}:${p.employeeName}`;
+    setIssuingKey(key);
+    try {
+      const res = await fetch(`/api/admin/live-sessions/${p.sessionId}/complete`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ employeeName: p.employeeName, companyCode: p.companyCode, force }),
+      });
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        const reasons = (data.blockedBy || []).map((r: string) => `• ${r}`).join('\n');
+        if (confirm(`${p.employeeName} não cumpre as regras de certificação:\n\n${reasons}\n\nEmitir o certificado mesmo assim?`)) {
+          await issueCertificate(p, true);
+        }
+        return;
+      }
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || 'Falha ao emitir o certificado.');
+        return;
+      }
+      await fetchAllParticipants();
+    } catch {
+      alert('Erro inesperado ao emitir o certificado.');
+    } finally {
+      setIssuingKey(null);
+    }
+  };
+
+  const sessionTitle = (id: number) => sessions.find(s => s.id === id)?.title || `Aula #${id}`;
 
   const handleCreate = async () => {
     if (!createForm.title || !createForm.companyCode || !createForm.date) return;
@@ -151,6 +186,10 @@ export function AdminLiveSessionsPage() {
 
   // Stats calculados dos dados reais
   const certificates = participants.filter(p => p.certificateIssued);
+  // Todos os participantes, pendentes de certificado primeiro
+  const participantsSorted = [...participants].sort(
+    (a, b) => Number(a.certificateIssued) - Number(b.certificateIssued),
+  );
   const upcomingCount = sessions.filter(s => s.status === 'scheduled').length;
   const certifiedCount = certificates.length;
   const completedSessions = sessions.filter(s => s.status === 'completed');
@@ -358,41 +397,67 @@ export function AdminLiveSessionsPage() {
                   <tr className="bg-brand text-white border-b-2 border-black">
                     <th className="p-4 font-display font-bold uppercase tracking-wider text-sm">Participante</th>
                     <th className="p-4 font-display font-bold uppercase tracking-wider text-sm hidden sm:table-cell">Empresa</th>
-                    <th className="p-4 font-display font-bold uppercase tracking-wider text-sm hidden md:table-cell">Conclusão</th>
-                    <th className="p-4 font-display font-bold uppercase tracking-wider text-sm text-right">Ações</th>
+                    <th className="p-4 font-display font-bold uppercase tracking-wider text-sm hidden lg:table-cell">Aula</th>
+                    <th className="p-4 font-display font-bold uppercase tracking-wider text-sm">Certificado</th>
+                    <th className="p-4 font-display font-bold uppercase tracking-wider text-sm text-right">Ação</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {certificates.map((cert) => (
-                    <tr key={cert.id} className="border-b-2 border-black last:border-none hover:bg-gray-50 transition-colors">
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-brand text-white rounded-lg border-2 border-black flex items-center justify-center shrink-0">
-                            <Award size={14} />
+                  {participantsSorted.length === 0 && (
+                    <tr><td colSpan={5} className="p-8 text-center text-gray-500">Nenhum participante registrado ainda. Os alunos aparecem aqui depois de entrarem em uma aula.</td></tr>
+                  )}
+                  {participantsSorted.map((p) => {
+                    const key = `${p.sessionId}:${p.employeeName}`;
+                    const issuing = issuingKey === key;
+                    return (
+                      <tr key={p.id} className="border-b-2 border-black last:border-none hover:bg-gray-50 transition-colors">
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-8 h-8 rounded-lg border-2 border-black flex items-center justify-center shrink-0 ${p.certificateIssued ? 'bg-brand text-white' : 'bg-gray-100 text-gray-400'}`}>
+                              <Award size={14} />
+                            </div>
+                            <span className="font-bold text-sm">{p.employeeName}</span>
                           </div>
-                          <span className="font-bold text-sm">{cert.employeeName}</span>
-                        </div>
-                      </td>
-                      <td className="p-4 text-sm hidden sm:table-cell">
-                        <span className="font-mono font-bold text-xs bg-gray-100 px-2 py-1 rounded border border-black">
-                          {cert.companyCode}
-                        </span>
-                      </td>
-                      <td className="p-4 text-sm text-gray-600 hidden md:table-cell whitespace-nowrap">
-                        {cert.completedAt ? new Date(cert.completedAt).toLocaleString('pt-BR') : '—'}
-                      </td>
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="outline" size="sm" className="!py-1.5 !px-3 !text-xs gap-1">
-                            <Download size={12} /> PDF
-                          </Button>
-                          <Button variant="primary" size="sm" className="!py-1.5 !px-3 !text-xs gap-1">
-                            <Send size={12} /> Enviar
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="p-4 text-sm hidden sm:table-cell">
+                          <span className="font-mono font-bold text-xs bg-gray-100 px-2 py-1 rounded border border-black">
+                            {p.companyCode}
+                          </span>
+                        </td>
+                        <td className="p-4 text-sm text-gray-600 hidden lg:table-cell">
+                          {sessionTitle(p.sessionId)}
+                        </td>
+                        <td className="p-4">
+                          {p.certificateIssued ? (
+                            <span className="inline-flex items-center gap-1 rounded-md border-2 border-brand bg-emerald-50 px-2 py-1 text-xs font-bold uppercase tracking-wide text-brand">
+                              <CheckCircle2 size={12} strokeWidth={2.5} /> Emitido
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-md border-2 border-gray-400 bg-gray-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-gray-500">
+                              Pendente
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4 text-right">
+                          {p.certificateIssued ? (
+                            <span className="text-xs text-gray-500 whitespace-nowrap">
+                              {p.completedAt ? new Date(p.completedAt).toLocaleDateString('pt-BR') : 'OK'}
+                            </span>
+                          ) : (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="!py-1.5 !px-3 !text-xs gap-1"
+                              disabled={issuing}
+                              onClick={() => issueCertificate(p)}
+                            >
+                              <Award size={12} /> {issuing ? 'Emitindo…' : 'Emitir certificado'}
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

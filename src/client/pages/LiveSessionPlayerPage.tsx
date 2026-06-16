@@ -250,17 +250,11 @@ export function LiveSessionPlayerPage() {
   const progressPercent = Math.min((elapsedSeconds / minDuration) * 100, 100);
   const canComplete = elapsedSeconds >= minDuration;
 
-  const handleComplete = async () => {
+  const handleComplete = () => {
     if (!canComplete || !sessionId) return;
-    try {
-      await fetch(`/api/admin/live-sessions/${sessionId}/complete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ employeeName: participantName, companyCode: '' }),
-      });
-    } catch {
-      // Continua mesmo se falhar — marca localmente
-    }
+    // A emissão do certificado é feita pelo instrutor (admin) no painel da aula,
+    // após a aula e respeitando as regras de certificação. Aqui apenas concluímos
+    // a tela do aluno; a presença já foi registrada via heartbeat.
     setStatus('completed');
     if (timerRef.current) clearInterval(timerRef.current);
   };

@@ -1,11 +1,8 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { desc, eq, sql, and } from 'drizzle-orm';
-// archiver is CJS — use createRequire for ESM compatibility (Node 24+)
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const archiver: (...args: any[]) => any = require('archiver');
+// archiver v8 é ESM e exporta classes (ZipArchive), não a função clássica archiver()
+import { ZipArchive } from 'archiver';
 import { db } from '../db/index.js';
 import { liveSessions, liveSessionParticipants, users } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -284,8 +281,8 @@ export async function adminLiveSessionRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Nenhum certificado emitido para esta aula.' });
       }
 
-      // Criar ZIP stream
-      const archive = archiver('zip', { zlib: { level: 6 } });
+      // Criar ZIP stream (archiver v8 — classe ZipArchive)
+      const archive = new ZipArchive({ zlib: { level: 6 } });
       const safeTitle = session.title.replace(/[^a-zA-Z0-9_-]/g, '_');
 
       reply.header('Content-Type', 'application/zip');
