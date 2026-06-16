@@ -54,7 +54,8 @@ export function LiveSessionPlayerPage() {
   useEffect(() => {
     async function fetchSession() {
       try {
-        const res = await fetch(`/api/admin/live-sessions/${sessionId}`);
+        // Endpoint público (sem auth) — funciona para admin e aluno
+        const res = await fetch(`/api/live-sessions/${sessionId}/status`);
         if (!res.ok) return;
         const data = await res.json();
         setSessionTitle(data.title || 'Aula Ao Vivo');

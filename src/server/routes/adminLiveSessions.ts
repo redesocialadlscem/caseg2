@@ -372,6 +372,8 @@ export async function handleLiveSessionAccess(app: FastifyInstance) {
       const session = await db.select({
         status: liveSessions.status,
         jitsiRoom: liveSessions.jitsiRoom,
+        title: liveSessions.title,
+        durationMinutes: liveSessions.durationMinutes,
       })
         .from(liveSessions)
         .where(eq(liveSessions.id, idParam.data.id))
@@ -384,6 +386,8 @@ export async function handleLiveSessionAccess(app: FastifyInstance) {
       return reply.send({
         status: session.status,
         jitsiRoom: session.jitsiRoom,
+        title: session.title,
+        durationMinutes: session.durationMinutes,
       });
     } catch (error) {
       app.log.error(error);
