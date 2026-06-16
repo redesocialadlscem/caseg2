@@ -20,6 +20,31 @@ export function CertificatesPage() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
+
+  async function handleDownload(cert: Certificate) {
+    if (!accessToken) return;
+    setDownloadingId(cert.id);
+    try {
+      const res = await fetch(`/api/certificates/${cert.id}/download`, {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (!res.ok) throw new Error('Falha ao gerar o PDF do certificado');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `certificado_${cert.courseTitle.replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 40)}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao baixar certificado');
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   useEffect(() => {
     async function fetchCertificates() {
@@ -117,9 +142,24 @@ export function CertificatesPage() {
               </div>
 
               <div className="mt-auto pt-4 border-t-2 border-dashed border-gray-200">
-                <Button variant="dark" size="sm" className="w-full gap-2">
-                  <Download size={16} strokeWidth={2.5} />
-                  Baixar PDF
+                <Button
+                  variant="dark"
+                  size="sm"
+                  className="w-full gap-2"
+                  disabled={downloadingId === cert.id}
+                  onClick={() => handleDownload(cert)}
+                >
+                  {downloadingId === cert.id ? (
+                    <>
+                      <Loader2 size={16} strokeWidth={2.5} className="animate-spin" />
+                      Gerando...
+                    </>
+                  ) : (
+                    <>
+                      <Download size={16} strokeWidth={2.5} />
+                      Baixar PDF
+                    </>
+                  )}
                 </Button>
               </div>
             </Card>

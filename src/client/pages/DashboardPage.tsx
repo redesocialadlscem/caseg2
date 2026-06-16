@@ -208,7 +208,12 @@ export function DashboardPage() {
                       <p className="font-body text-sm text-gray-500">
                         {course.completedLessons}/{course.totalLessons} lições concluídas
                       </p>
-                      <Button variant="dark" size="sm" className="w-full sm:w-auto gap-2">
+                      <Button
+                        variant="dark"
+                        size="sm"
+                        className="w-full sm:w-auto gap-2"
+                        onClick={() => navigate(`/courses/${course.courseId}/player`)}
+                      >
                         Continuar
                       </Button>
                     </div>

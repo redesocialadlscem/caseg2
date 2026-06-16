@@ -1,27 +1,28 @@
 import PDFDocument from 'pdfkit';
-import { PassThrough } from 'stream';
 
-interface CertificateData {
-  employeeName: string;
-  companyCode: string;
-  sessionTitle: string;
-  courseName: string;
-  completedAt: string;
-  durationMinutes: number;
+interface CertificateRenderOptions {
+  recipientName: string;
+  /** Texto do corpo (já formatado). */
+  bodyText: string;
+  /** Ex.: "Concluído em: 15 de junho de 2026" */
+  dateLabel: string;
+  /** Código de verificação exibido no rodapé. */
+  code?: string;
+  title?: string;
 }
 
 /**
- * Gera um PDF de certificado em estilo Neo-Brutalist "Industrial Safety"
- * Retorna um Buffer com o PDF completo
+ * Núcleo de renderização do certificado (estilo Neo-Brutalist "Industrial Safety").
+ * Usado tanto pelos certificados de curso quanto pelos de aula ao vivo.
  */
-export function generateCertificatePdf(data: CertificateData): Promise<Buffer> {
+function renderCertificate(opts: CertificateRenderOptions): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
       layout: 'landscape',
       margin: 0,
       info: {
-        Title: `Certificado - ${data.employeeName}`,
+        Title: `Certificado - ${opts.recipientName}`,
         Author: 'CASEG Protege',
         Subject: 'Certificado de Conclusão',
       },
@@ -42,16 +43,10 @@ export function generateCertificatePdf(data: CertificateData): Promise<Buffer> {
     doc.rect(0, 0, W, H).fill(WHITE);
 
     // ── Borda externa preta (4px) ──
-    doc.rect(20, 20, W - 40, H - 40)
-      .lineWidth(4)
-      .strokeColor(BLACK)
-      .stroke();
+    doc.rect(20, 20, W - 40, H - 40).lineWidth(4).strokeColor(BLACK).stroke();
 
     // ── Borda interna verde (2px) ──
-    doc.rect(30, 30, W - 60, H - 60)
-      .lineWidth(2)
-      .strokeColor(BRAND_GREEN)
-      .stroke();
+    doc.rect(30, 30, W - 60, H - 60).lineWidth(2).strokeColor(BRAND_GREEN).stroke();
 
     // ── Faixa superior verde ──
     doc.rect(30, 30, W - 60, 60).fill(BRAND_GREEN);
@@ -60,18 +55,15 @@ export function generateCertificatePdf(data: CertificateData): Promise<Buffer> {
     doc.fontSize(28)
       .font('Helvetica-Bold')
       .fillColor(WHITE)
-      .text('CERTIFICADO DE CONCLUSÃO', 50, 48, {
-        align: 'center',
-        width: W - 100,
-      });
+      .text(opts.title || 'CERTIFICADO DE CONCLUSÃO', 50, 48, { align: 'center', width: W - 100 });
 
-    // ── Logo / Nome da Plataforma ──
+    // ── Nome da Plataforma ──
     doc.fontSize(14)
       .font('Helvetica-Bold')
       .fillColor(BRAND_GREEN)
       .text('CASEG PROTEGE', 50, 110, { align: 'center', width: W - 100 });
 
-    // ── Texto "Certificamos que" ──
+    // ── "Certificamos que" ──
     doc.fontSize(12)
       .font('Helvetica')
       .fillColor('#333333')
@@ -81,85 +73,97 @@ export function generateCertificatePdf(data: CertificateData): Promise<Buffer> {
     doc.fontSize(32)
       .font('Helvetica-Bold')
       .fillColor(BLACK)
-      .text(data.employeeName.toUpperCase(), 50, 170, {
-        align: 'center',
-        width: W - 100,
-      });
+      .text(opts.recipientName.toUpperCase(), 50, 170, { align: 'center', width: W - 100 });
 
     // ── Linha decorativa sob o nome ──
     const nameY = 215;
-    doc.moveTo(200, nameY)
-      .lineTo(W - 200, nameY)
-      .lineWidth(3)
-      .strokeColor(BRAND_GREEN)
-      .stroke();
+    doc.moveTo(200, nameY).lineTo(W - 200, nameY).lineWidth(3).strokeColor(BRAND_GREEN).stroke();
 
-    // ── Texto do corpo ──
-    const bodyText = `concluiu com êxito a aula ao vivo "${data.sessionTitle}" (${data.courseName}), ministrada para a empresa ${data.companyCode}, com carga horária de ${data.durationMinutes} minutos.`;
-
+    // ── Corpo ──
     doc.fontSize(13)
       .font('Helvetica')
       .fillColor('#333333')
-      .text(bodyText, 80, 235, {
-        align: 'center',
-        width: W - 160,
-        lineGap: 6,
-      });
+      .text(opts.bodyText, 80, 235, { align: 'center', width: W - 160, lineGap: 6 });
 
-    // ── Data de conclusão ──
-    const dateStr = new Date(data.completedAt).toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric',
-    });
-
+    // ── Data ──
     doc.fontSize(11)
       .font('Helvetica')
       .fillColor('#555555')
-      .text(`Concluído em: ${dateStr}`, 50, 320, {
-        align: 'center',
-        width: W - 100,
-      });
+      .text(opts.dateLabel, 50, 320, { align: 'center', width: W - 100 });
 
-    // ── Selo / Badge quadrado (Neo-Brutalist) ──
+    // ── Selo / Badge quadrado ──
     const badgeX = W / 2 - 40;
     const badgeY = 360;
     const badgeSize = 80;
-
-    // Sombra dura
-    doc.rect(badgeX + 4, badgeY + 4, badgeSize, badgeSize).fill(BLACK);
-    // Badge
-    doc.rect(badgeX, badgeY, badgeSize, badgeSize)
-      .lineWidth(3)
-      .strokeColor(BLACK)
-      .fill(BRAND_GREEN);
-    // Ícone check
+    doc.rect(badgeX + 4, badgeY + 4, badgeSize, badgeSize).fill(BLACK); // sombra dura
+    doc.rect(badgeX, badgeY, badgeSize, badgeSize).lineWidth(3).strokeColor(BLACK).fill(BRAND_GREEN);
     doc.fontSize(36)
       .font('Helvetica-Bold')
       .fillColor(WHITE)
-      .text('✓', badgeX, badgeY + 20, {
-        align: 'center',
-        width: badgeSize,
-      });
+      .text('✓', badgeX, badgeY + 20, { align: 'center', width: badgeSize });
 
     // ── Rodapé ──
     doc.rect(30, H - 80, W - 60, 50).fill('#F5F5F5');
-    doc.rect(30, H - 80, W - 60, 50)
-      .lineWidth(2)
-      .strokeColor(BLACK)
-      .stroke();
-
+    doc.rect(30, H - 80, W - 60, 50).lineWidth(2).strokeColor(BLACK).stroke();
+    const footerText = opts.code
+      ? `Certificado nº ${opts.code} — gerado digitalmente pela plataforma CASEG Protege.\n`
+        + 'Verifique a autenticidade no portal corporativo.'
+      : 'Este certificado foi gerado digitalmente pela plataforma CASEG Protege.\n'
+        + 'Verifique a autenticidade no portal corporativo.';
     doc.fontSize(9)
       .font('Helvetica')
       .fillColor('#666666')
-      .text(
-        'Este certificado foi gerado digitalmente pela plataforma CASEG Protege.\n'
-        + 'Verifique a autenticidade no portal corporativo.',
-        50,
-        H - 72,
-        { align: 'center', width: W - 100 }
-      );
+      .text(footerText, 50, H - 72, { align: 'center', width: W - 100 });
 
     doc.end();
+  });
+}
+
+function formatPtDate(value: string | number | Date): string {
+  const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
+  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
+// ─── Certificado de Aula ao Vivo (mantém a API existente) ────────────────────
+interface LiveCertificateData {
+  employeeName: string;
+  companyCode: string;
+  sessionTitle: string;
+  courseName: string;
+  completedAt: string;
+  durationMinutes: number;
+}
+
+export function generateCertificatePdf(data: LiveCertificateData): Promise<Buffer> {
+  const body = `concluiu com êxito a aula ao vivo "${data.sessionTitle}" (${data.courseName}), `
+    + `ministrada para a empresa ${data.companyCode}, com carga horária de ${data.durationMinutes} minutos.`;
+  return renderCertificate({
+    recipientName: data.employeeName,
+    bodyText: body,
+    dateLabel: `Concluído em: ${formatPtDate(data.completedAt)}`,
+  });
+}
+
+// ─── Certificado de Conclusão de Curso ───────────────────────────────────────
+interface CourseCertificateData {
+  studentName: string;
+  courseTitle: string;
+  category?: string;
+  durationHours: number;
+  issuedAt: string | number | Date;
+  code?: string;
+}
+
+export function generateCourseCertificatePdf(data: CourseCertificateData): Promise<Buffer> {
+  const hours = Number(data.durationHours) || 0;
+  const cat = data.category ? ` na área de ${data.category}` : '';
+  const body = `concluiu com êxito o curso "${data.courseTitle}"${cat}, `
+    + `com carga horária de ${hours} hora${hours === 1 ? '' : 's'}, `
+    + 'cumprindo todos os requisitos de aprovação.';
+  return renderCertificate({
+    recipientName: data.studentName,
+    bodyText: body,
+    dateLabel: `Emitido em: ${formatPtDate(data.issuedAt)}`,
+    code: data.code,
   });
 }
