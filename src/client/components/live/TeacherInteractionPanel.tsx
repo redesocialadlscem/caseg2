@@ -15,7 +15,9 @@ interface SessionItem {
 interface Stats {
   total: number;
   counts: number[];
+  textCounts?: { answer: string; count: number }[];
   correctAnswer: number | null;
+  correctCount?: number;
   accuracy: number;
   avgResponseMs: number;
 }
@@ -147,26 +149,56 @@ export function TeacherInteractionPanel({ sessionId, accessToken }: Props) {
                 {/* Stats ao vivo da interação aberta */}
                 {it.status === 'open' && st && (
                   <div className="mt-2 space-y-1">
-                    {it.options.map((o, i) => {
-                      const c = st.counts[i] ?? 0;
-                      const pct = st.total ? Math.round((c / st.total) * 100) : 0;
-                      const isCorrect = st.correctAnswer === i;
-                      return (
-                        <div key={i} className="text-xs">
-                          <div className="flex justify-between">
-                            <span className={isCorrect ? 'font-bold text-brand flex items-center gap-1' : 'text-gray-600'}>
-                              {isCorrect && <CheckCircle2 size={11} strokeWidth={3} />} {o}
-                            </span>
-                            <span className="font-bold">{c} ({pct}%)</span>
-                          </div>
-                          <div className="h-1.5 bg-gray-100 border border-black rounded-full overflow-hidden">
-                            <div className={`h-full ${isCorrect ? 'bg-brand' : 'bg-gray-400'}`} style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    })}
-                    {st.correctAnswer !== null && (
-                      <p className="text-[11px] font-bold text-gray-500 pt-1">Acerto: {st.accuracy}% · Tempo médio: {(st.avgResponseMs / 1000).toFixed(1)}s</p>
+                    {it.type === 'flash' ? (
+                      /* Presença relâmpago — contagem de confirmações */
+                      <p className="text-sm font-display font-bold text-brand flex items-center gap-1.5">
+                        <CheckCircle2 size={15} strokeWidth={2.5} /> {st.total} presente{st.total === 1 ? '' : 's'} confirmado{st.total === 1 ? '' : 's'}
+                      </p>
+                    ) : it.type === 'keyword' ? (
+                      /* Palavra-chave — distribuição das respostas digitadas */
+                      <>
+                        {(st.textCounts ?? []).length === 0 && <p className="text-xs text-gray-500">Aguardando respostas…</p>}
+                        {(st.textCounts ?? []).slice(0, 8).map((t, i) => {
+                          const pct = st.total ? Math.round((t.count / st.total) * 100) : 0;
+                          return (
+                            <div key={i} className="text-xs">
+                              <div className="flex justify-between">
+                                <span className="text-gray-700 truncate pr-2">{t.answer}</span>
+                                <span className="font-bold shrink-0">{t.count} ({pct}%)</span>
+                              </div>
+                              <div className="h-1.5 bg-gray-100 border border-black rounded-full overflow-hidden">
+                                <div className="h-full bg-gray-400" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <p className="text-[11px] font-bold text-gray-500 pt-1">Acerto: {st.accuracy}% · Tempo médio: {(st.avgResponseMs / 1000).toFixed(1)}s</p>
+                      </>
+                    ) : (
+                      /* Quiz / V-F / Enquete — barras por alternativa */
+                      <>
+                        {it.options.map((o, i) => {
+                          const c = st.counts[i] ?? 0;
+                          const pct = st.total ? Math.round((c / st.total) * 100) : 0;
+                          const isCorrect = st.correctAnswer === i;
+                          return (
+                            <div key={i} className="text-xs">
+                              <div className="flex justify-between">
+                                <span className={isCorrect ? 'font-bold text-brand flex items-center gap-1' : 'text-gray-600'}>
+                                  {isCorrect && <CheckCircle2 size={11} strokeWidth={3} />} {o}
+                                </span>
+                                <span className="font-bold">{c} ({pct}%)</span>
+                              </div>
+                              <div className="h-1.5 bg-gray-100 border border-black rounded-full overflow-hidden">
+                                <div className={`h-full ${isCorrect ? 'bg-brand' : 'bg-gray-400'}`} style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {st.correctAnswer !== null && (
+                          <p className="text-[11px] font-bold text-gray-500 pt-1">Acerto: {st.accuracy}% · Tempo médio: {(st.avgResponseMs / 1000).toFixed(1)}s</p>
+                        )}
+                      </>
                     )}
                   </div>
                 )}

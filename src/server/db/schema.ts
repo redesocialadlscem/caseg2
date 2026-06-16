@@ -304,10 +304,11 @@ export const forumLikes = sqliteTable('forum_likes', {
 // ─── Interactions (Banco de Interações — Aula Interativa) ────────────────────
 export const interactions = sqliteTable('interactions', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  type: text('type', { enum: ['quiz', 'truefalse', 'poll'] }).notNull(),
+  type: text('type', { enum: ['quiz', 'truefalse', 'poll', 'keyword', 'flash'] }).notNull(),
   question: text('question').notNull(),
   options: text('options').notNull().default('[]'), // JSON array de strings
-  correctAnswer: integer('correct_answer'), // índice da correta; null para enquete
+  correctAnswer: integer('correct_answer'), // índice da correta; null para enquete/keyword/flash
+  correctText: text('correct_text'), // JSON array de respostas aceitas (keyword); null nos demais
   timeLimitSeconds: integer('time_limit_seconds').notNull().default(20),
   category: text('category').notNull().default(''),
   createdBy: integer('created_by').references(() => users.id, { onDelete: 'set null' }),
@@ -343,7 +344,8 @@ export const interactionResponses = sqliteTable(
       .notNull()
       .references(() => sessionInteractions.id, { onDelete: 'cascade' }),
     participantName: text('participant_name').notNull(),
-    answer: integer('answer').notNull(), // índice da opção escolhida
+    answer: integer('answer').notNull().default(0), // índice da opção (0 p/ keyword/flash)
+    answerText: text('answer_text'), // resposta digitada (keyword); null nos demais
     isCorrect: integer('is_correct', { mode: 'boolean' }),
     responseMs: integer('response_ms').notNull().default(0),
     createdAt: integer('created_at', { mode: 'timestamp' })

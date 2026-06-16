@@ -209,17 +209,32 @@ export async function computeSessionAnalytics(sessionId: number): Promise<Sessio
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const interactionSchema = z.object({
-  type: z.enum(['quiz', 'truefalse', 'poll']),
+  type: z.enum(['quiz', 'truefalse', 'poll', 'keyword', 'flash']),
   question: z.string().min(1).max(2000),
-  options: z.array(z.string().min(1)).min(2).max(8),
+  options: z.array(z.string().min(1)).max(8).default([]),
   correctAnswer: z.number().int().min(0).nullable().optional(),
+  correctText: z.array(z.string().min(1)).max(20).optional().default([]), // respostas aceitas (keyword)
   timeLimitSeconds: z.number().int().min(5).max(600).default(20),
   category: z.string().max(120).optional().default(''),
+}).superRefine((d, ctx) => {
+  // Tipos baseados em opções precisam de pelo menos 2 alternativas.
+  if ((d.type === 'quiz' || d.type === 'truefalse' || d.type === 'poll') && d.options.length < 2) {
+    ctx.addIssue({ code: 'custom', message: 'Informe ao menos 2 opções', path: ['options'] });
+  }
+  // Quiz e V/F exigem a alternativa correta.
+  if ((d.type === 'quiz' || d.type === 'truefalse') && (d.correctAnswer == null || d.correctAnswer >= d.options.length)) {
+    ctx.addIssue({ code: 'custom', message: 'Selecione a alternativa correta', path: ['correctAnswer'] });
+  }
+  // Keyword exige ao menos uma resposta aceita.
+  if (d.type === 'keyword' && d.correctText.length === 0) {
+    ctx.addIssue({ code: 'custom', message: 'Informe ao menos uma resposta aceita', path: ['correctText'] });
+  }
 });
 
 const respondSchema = z.object({
   participantName: z.string().min(1).max(120),
-  answer: z.number().int().min(0),
+  answer: z.number().int().min(0).default(0),
+  answerText: z.string().max(500).optional(),
   responseMs: z.number().int().min(0).max(3_600_000).default(0),
 });
 
@@ -232,10 +247,29 @@ async function adminGuard(request: FastifyRequest, reply: FastifyReply) {
   }
 }
 
-/** Normaliza correctAnswer conforme o tipo (enquete não tem resposta certa). */
+/** Normaliza correctAnswer conforme o tipo (só quiz/V-F têm índice correto). */
 function normalizeCorrect(type: string, correct: number | null | undefined): number | null {
-  if (type === 'poll') return null;
+  if (type !== 'quiz' && type !== 'truefalse') return null;
   return typeof correct === 'number' ? correct : null;
+}
+
+/** Normaliza texto livre para comparação de respostas (keyword): minúsculo, sem acento, sem espaços extras. */
+function normalizeText(s: string): string {
+  return s
+    .normalize('NFD').replace(/[̀-ͯ]/g, '') // remove acentos
+    .toLowerCase()
+    .replace(/[^\w\s]/g, ' ') // pontuação vira espaço
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Desserializa os campos JSON de uma interação para o cliente. */
+function serializeInteraction(r: any) {
+  return {
+    ...r,
+    options: JSON.parse(r.options || '[]'),
+    correctText: r.correctText ? JSON.parse(r.correctText) : [],
+  };
 }
 
 export async function interactionsRoutes(app: FastifyInstance) {
@@ -251,7 +285,7 @@ export async function interactionsRoutes(app: FastifyInstance) {
       .where(conds.length ? and(...conds) : undefined)
       .orderBy(desc(interactions.createdAt));
     return reply.send({
-      interactions: rows.map((r) => ({ ...r, options: JSON.parse(r.options) })),
+      interactions: rows.map(serializeInteraction),
     });
   });
 
@@ -267,11 +301,12 @@ export async function interactionsRoutes(app: FastifyInstance) {
       question: d.question,
       options: JSON.stringify(d.options),
       correctAnswer: normalizeCorrect(d.type, d.correctAnswer),
+      correctText: d.type === 'keyword' ? JSON.stringify(d.correctText) : null,
       timeLimitSeconds: d.timeLimitSeconds,
       category: d.category || '',
       createdBy: request.user!.userId,
     }).returning();
-    return reply.status(201).send({ interaction: { ...row, options: JSON.parse(row.options) } });
+    return reply.status(201).send({ interaction: serializeInteraction(row) });
   });
 
   // PUT /api/admin/interactions/:id — atualiza
@@ -288,6 +323,7 @@ export async function interactionsRoutes(app: FastifyInstance) {
       question: d.question,
       options: JSON.stringify(d.options),
       correctAnswer: normalizeCorrect(d.type, d.correctAnswer),
+      correctText: d.type === 'keyword' ? JSON.stringify(d.correctText) : null,
       timeLimitSeconds: d.timeLimitSeconds,
       category: d.category || '',
     }).where(eq(interactions.id, idP.data.id));
@@ -313,11 +349,12 @@ export async function interactionsRoutes(app: FastifyInstance) {
       question: `${orig.question} (cópia)`,
       options: orig.options,
       correctAnswer: orig.correctAnswer,
+      correctText: orig.correctText,
       timeLimitSeconds: orig.timeLimitSeconds,
       category: orig.category,
       createdBy: request.user!.userId,
     }).returning();
-    return reply.status(201).send({ interaction: { ...row, options: JSON.parse(row.options) } });
+    return reply.status(201).send({ interaction: serializeInteraction(row) });
   });
 
   // ─── CONTROLE DO PROFESSOR (admin, dentro da aula) ─────────────────────────
@@ -429,25 +466,34 @@ export async function interactionsRoutes(app: FastifyInstance) {
     if (!si) return reply.status(404).send({ error: 'Not found' });
 
     const responses = await db
-      .select({ answer: interactionResponses.answer, isCorrect: interactionResponses.isCorrect, responseMs: interactionResponses.responseMs })
+      .select({ answer: interactionResponses.answer, answerText: interactionResponses.answerText, isCorrect: interactionResponses.isCorrect, responseMs: interactionResponses.responseMs })
       .from(interactionResponses)
       .where(eq(interactionResponses.sessionInteractionId, idP.data.siId));
 
     const opts: string[] = JSON.parse(si.options);
     const counts = opts.map(() => 0);
+    const textMap = new Map<string, { answer: string; count: number }>(); // distribuição de respostas digitadas (keyword)
     let correct = 0;
     let totalMs = 0;
     for (const r of responses) {
       if (r.answer >= 0 && r.answer < counts.length) counts[r.answer]++;
+      if (si.type === 'keyword' && r.answerText) {
+        const key = normalizeText(r.answerText);
+        const e = textMap.get(key);
+        if (e) e.count++;
+        else textMap.set(key, { answer: r.answerText, count: 1 });
+      }
       if (r.isCorrect) correct++;
       totalMs += r.responseMs || 0;
     }
     const total = responses.length;
+    const textCounts = [...textMap.values()].sort((a, b) => b.count - a.count);
     return reply.send({
       status: si.status,
       type: si.type,
       total,
       counts,
+      textCounts,
       correctAnswer: si.correctAnswer,
       correctCount: correct,
       accuracy: total ? Math.round((correct / total) * 100) : 0,
@@ -535,6 +581,7 @@ export async function interactionsRoutes(app: FastifyInstance) {
         status: sessionInteractions.status,
         type: interactions.type,
         correctAnswer: interactions.correctAnswer,
+        correctText: interactions.correctText,
       })
       .from(sessionInteractions)
       .innerJoin(interactions, eq(interactions.id, sessionInteractions.interactionId))
@@ -543,13 +590,28 @@ export async function interactionsRoutes(app: FastifyInstance) {
     if (!si) return reply.status(404).send({ error: 'Not found' });
     if (si.status !== 'open') return reply.status(409).send({ error: 'closed' });
 
-    const isCorrect = si.type === 'poll' ? null : parsed.data.answer === si.correctAnswer;
+    // Avaliação da resposta por tipo de interação.
+    let isCorrect: boolean | null;
+    let answerText: string | null = null;
+    if (si.type === 'poll') {
+      isCorrect = null;                       // enquete: sem certo/errado
+    } else if (si.type === 'flash') {
+      isCorrect = true;                       // presença relâmpago: tocou = presente
+    } else if (si.type === 'keyword') {
+      const accepted: string[] = si.correctText ? JSON.parse(si.correctText) : [];
+      const norm = normalizeText(parsed.data.answerText || '');
+      answerText = (parsed.data.answerText || '').trim().slice(0, 500);
+      isCorrect = norm.length > 0 && accepted.some((a) => normalizeText(a) === norm);
+    } else {
+      isCorrect = parsed.data.answer === si.correctAnswer; // quiz / V-F
+    }
 
     // Antifraude: índice único impede resposta dupla por participante
     await db.insert(interactionResponses).values({
       sessionInteractionId: idP.data.siId,
       participantName: parsed.data.participantName,
       answer: parsed.data.answer,
+      answerText,
       isCorrect,
       responseMs: parsed.data.responseMs,
     }).onConflictDoNothing();
@@ -557,7 +619,7 @@ export async function interactionsRoutes(app: FastifyInstance) {
     return reply.send({
       ok: true,
       isCorrect,
-      correctAnswer: si.type === 'poll' ? null : si.correctAnswer,
+      correctAnswer: (si.type === 'quiz' || si.type === 'truefalse') ? si.correctAnswer : null,
     });
   });
 
