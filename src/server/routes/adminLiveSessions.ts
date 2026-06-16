@@ -7,9 +7,10 @@ const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const archiver: (...args: any[]) => any = require('archiver');
 import { db } from '../db/index.js';
-import { liveSessions, liveSessionParticipants } from '../db/schema.js';
+import { liveSessions, liveSessionParticipants, users } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { generateCertificatePdf } from '../lib/certificatePdf.js';
+import { generateJaasToken } from '../lib/jaas.js';
 
 // ─── Schemas Zod ─────────────────────────────────────────────────────────────
 const createSessionSchema = z.object({
@@ -52,6 +53,27 @@ export async function adminLiveSessionRoutes(app: FastifyInstance) {
     if (!isAdmin(request)) {
       return reply.status(403).send({ error: 'Admin access required' });
     }
+  });
+
+  // GET /api/admin/live-sessions/:id/jaas-token — token de MODERADOR (admin) para a sala
+  app.get('/api/admin/live-sessions/:id/jaas-token', async (request, reply) => {
+    const idParam = idParamSchema.safeParse(request.params);
+    if (!idParam.success) {
+      return reply.status(400).send({ error: 'Invalid session id' });
+    }
+    const session = await db.select().from(liveSessions).where(eq(liveSessions.id, idParam.data.id)).get();
+    if (!session) {
+      return reply.status(404).send({ error: 'Session not found' });
+    }
+    const me = await db.select({ name: users.name }).from(users).where(eq(users.id, request.user!.userId)).get();
+    const result = await generateJaasToken({
+      room: session.jitsiRoom,
+      name: me?.name || request.user!.email,
+      email: request.user!.email,
+      userId: String(request.user!.userId),
+      moderator: true,
+    });
+    return reply.send({ token: result?.token ?? null, appId: result?.appId ?? null });
   });
 
   // GET /api/admin/live-sessions — listar todas as sessões
@@ -367,5 +389,26 @@ export async function handleLiveSessionAccess(app: FastifyInstance) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to fetch session status' });
     }
+  });
+
+  // POST /api/live-sessions/:id/jaas-token — token de PARTICIPANTE (aluno, sem moderador)
+  app.post('/api/live-sessions/:id/jaas-token', async (request, reply) => {
+    const idParam = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!idParam.success) {
+      return reply.status(400).send({ error: 'Invalid session id' });
+    }
+    const body = z.object({ name: z.string().min(1).max(120).optional() }).safeParse(request.body ?? {});
+    const name = (body.success && body.data.name) ? body.data.name : 'Participante';
+
+    const session = await db.select().from(liveSessions).where(eq(liveSessions.id, idParam.data.id)).get();
+    if (!session) {
+      return reply.status(404).send({ error: 'Session not found' });
+    }
+    const result = await generateJaasToken({
+      room: session.jitsiRoom,
+      name,
+      moderator: false,
+    });
+    return reply.send({ token: result?.token ?? null, appId: result?.appId ?? null });
   });
 }

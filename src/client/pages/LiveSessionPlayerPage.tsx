@@ -6,6 +6,11 @@ import {
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
+import { useAuthContext } from '../context/AuthContext';
+
+// JaaS App ID padrão (público) — usado como fallback quando o backend não
+// devolve um appId (credenciais do JaaS não configuradas).
+const DEFAULT_JAAS_APP_ID = 'vpaas-magic-cookie-71d242ffa38c4e99bcd9ead502e8355d';
 
 // Declaração de tipos para Jitsi Meet External API
 declare global {
@@ -32,6 +37,12 @@ export function LiveSessionPlayerPage() {
   const [sessionTitle, setSessionTitle] = useState('Carregando...');
   const [jitsiRoom, setJitsiRoom] = useState(stateData?.jitsiRoom || '');
   const [minDuration, setMinDuration] = useState(3600);
+  const { accessToken, user } = useAuthContext();
+
+  // Token JaaS (define o papel de moderador). Resolvido antes de iniciar o Jitsi.
+  const [jaasToken, setJaasToken] = useState<string | null>(null);
+  const [jaasAppId, setJaasAppId] = useState<string | null>(null);
+  const [tokenResolved, setTokenResolved] = useState(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const jitsiContainerRef = useRef<HTMLDivElement>(null);
@@ -96,25 +107,62 @@ export function LiveSessionPlayerPage() {
     };
   }, [status]);
 
-  // Jitsi Meet External API — carrega script e inicializa quando live
+  // Busca o token JaaS antes de iniciar o Jitsi.
+  // Admin autenticado → token de moderador; demais → token de participante.
   useEffect(() => {
-    if (status !== 'live' || !jitsiContainerRef.current) return;
+    if (status !== 'live' || !sessionId || tokenResolved) return;
+    let cancelled = false;
+
+    async function fetchToken() {
+      const isAdmin = !!accessToken && user?.role === 'admin';
+      try {
+        const res = isAdmin
+          ? await fetch(`/api/admin/live-sessions/${sessionId}/jaas-token`, {
+              headers: { Authorization: `Bearer ${accessToken}` },
+            })
+          : await fetch(`/api/live-sessions/${sessionId}/jaas-token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: participantName }),
+            });
+        if (res.ok) {
+          const data = await res.json();
+          if (!cancelled) {
+            setJaasToken(data.token || null);
+            setJaasAppId(data.appId || null);
+          }
+        }
+      } catch {
+        // Sem token: entra como convidado (fallback do comportamento atual)
+      } finally {
+        if (!cancelled) setTokenResolved(true);
+      }
+    }
+
+    fetchToken();
+    return () => { cancelled = true; };
+  }, [status, sessionId, tokenResolved, accessToken, user, participantName]);
+
+  // Jitsi Meet External API — carrega script e inicializa quando live (após resolver o token)
+  useEffect(() => {
+    if (status !== 'live' || !tokenResolved || !jitsiContainerRef.current) return;
 
     let disposed = false;
 
     const initJitsi = () => {
       if (disposed || !jitsiContainerRef.current || jitsiApiRef.current) return;
 
-      // JaaS App ID — sem limite de tempo
-      const JAAS_APP_ID = 'vpaas-magic-cookie-71d242ffa38c4e99bcd9ead502e8355d';
+      const appId = jaasAppId || DEFAULT_JAAS_APP_ID;
       const domain = '8x8.vc';
-      const roomName = `${JAAS_APP_ID}/${jitsiRoom || `CASEG2-live-${sessionId}`}`;
+      const roomName = `${appId}/${jitsiRoom || `CASEG2-live-${sessionId}`}`;
 
       const api = new window.JitsiMeetExternalAPI(domain, {
         roomName,
         parentNode: jitsiContainerRef.current,
         width: '100%',
         height: '100%',
+        // JWT define o papel (moderador para admin); ausente = convidado
+        ...(jaasToken ? { jwt: jaasToken } : {}),
         userInfo: {
           displayName: participantName || 'Aluno',
         },
@@ -153,9 +201,9 @@ export function LiveSessionPlayerPage() {
     if (window.JitsiMeetExternalAPI) {
       initJitsi();
     } else {
-      const JAAS_APP_ID = 'vpaas-magic-cookie-71d242ffa38c4e99bcd9ead502e8355d';
+      const appId = jaasAppId || DEFAULT_JAAS_APP_ID;
       const script = document.createElement('script');
-      script.src = `https://8x8.vc/${JAAS_APP_ID}/external_api.js`;
+      script.src = `https://8x8.vc/${appId}/external_api.js`;
       script.async = true;
       script.onload = initJitsi;
       script.onerror = () => console.error('[Jitsi] Falha ao carregar external_api.js');
@@ -169,7 +217,7 @@ export function LiveSessionPlayerPage() {
         jitsiApiRef.current = null;
       }
     };
-  }, [status, sessionId, jitsiRoom, participantName, navigate]);
+  }, [status, sessionId, jitsiRoom, participantName, navigate, tokenResolved, jaasToken, jaasAppId]);
 
   const formatTime = (totalSeconds: number) => {
     const h = Math.floor(totalSeconds / 3600);
