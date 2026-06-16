@@ -6,6 +6,7 @@ export const users = sqliteTable('users', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   email: text('email').notNull().unique(),
   name: text('name').notNull(),
+  cpf: text('cpf').notNull().default(''), // CPF do trabalhador (conformidade NR)
   passwordHash: text('password_hash').notNull(),
   role: text('role', { enum: ['student', 'admin'] }).notNull().default('student'),
   isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
@@ -33,6 +34,11 @@ export const courses = sqliteTable('courses', {
   updatedAt: integer('updated_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
+  // Conformidade NR
+  nrReference: text('nr_reference').notNull().default(''),       // ex.: "NR-35"
+  validityMonths: integer('validity_months').notNull().default(0), // validade do certificado (0 = sem validade)
+  instructorName: text('instructor_name').notNull().default(''),  // instrutor responsável
+  instructorTitle: text('instructor_title').notNull().default(''),// qualificação/registro do instrutor
 });
 
 // ─── Modules ─────────────────────────────────────────────────────────────────

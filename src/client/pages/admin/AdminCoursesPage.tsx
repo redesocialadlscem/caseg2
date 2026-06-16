@@ -38,6 +38,10 @@ interface Course {
   durationHours: number;
   createdAt: string;
   updatedAt: string;
+  nrReference: string;
+  validityMonths: number;
+  instructorName: string;
+  instructorTitle: string;
 }
 
 interface Module {
@@ -64,6 +68,10 @@ interface CourseFormData {
   price: number;
   durationHours: number;
   updatedAt: string; // yyyy-mm-dd
+  nrReference: string;
+  validityMonths: number;
+  instructorName: string;
+  instructorTitle: string;
 }
 
 /** Converte um timestamp/data ISO em yyyy-mm-dd para o input date. */
@@ -94,6 +102,10 @@ export function AdminCoursesPage() {
     price: 0,
     durationHours: 0,
     updatedAt: toDateInput(),
+    nrReference: '',
+    validityMonths: 0,
+    instructorName: '',
+    instructorTitle: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<CourseFormData>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -146,7 +158,7 @@ export function AdminCoursesPage() {
   // ─── Course CRUD ─────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingCourse(null);
-    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false, price: 0, durationHours: 0, updatedAt: toDateInput() });
+    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false, price: 0, durationHours: 0, updatedAt: toDateInput(), nrReference: '', validityMonths: 0, instructorName: '', instructorTitle: '' });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -162,6 +174,10 @@ export function AdminCoursesPage() {
       price: course.price ?? 0,
       durationHours: course.durationHours ?? 0,
       updatedAt: toDateInput(course.updatedAt),
+      nrReference: course.nrReference ?? '',
+      validityMonths: course.validityMonths ?? 0,
+      instructorName: course.instructorName ?? '',
+      instructorTitle: course.instructorTitle ?? '',
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -786,6 +802,47 @@ export function AdminCoursesPage() {
                 </div>
               </div>
               <p className="text-xs text-gray-500 -mt-2">Data de revisão do conteúdo (conformidade com a versão vigente da NR). Atualiza sozinho ao editar módulos/lições.</p>
+
+              {/* Conformidade NR: norma, validade e instrutor (vão para o certificado) */}
+              <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/70 p-4 space-y-3">
+                <p className="text-xs font-display font-bold uppercase tracking-wide text-gray-600 flex items-center gap-1.5">
+                  <ClipboardList size={14} /> Conformidade NR (vai no certificado)
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Norma de referência"
+                    placeholder="Ex: NR-35"
+                    value={formData.nrReference}
+                    onChange={(e) => setFormData((p) => ({ ...p, nrReference: e.target.value }))}
+                  />
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="validity" className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">Validade (meses)</label>
+                    <input
+                      id="validity"
+                      type="number"
+                      min={0}
+                      step={1}
+                      placeholder="0 = sem validade"
+                      value={Number.isFinite(formData.validityMonths) ? formData.validityMonths : 0}
+                      onChange={(e) => setFormData((p) => ({ ...p, validityMonths: Math.max(0, parseInt(e.target.value) || 0) }))}
+                      className="w-full bg-white border-2 border-black rounded-xl px-4 py-3 font-body text-base focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow"
+                    />
+                  </div>
+                </div>
+                <Input
+                  label="Instrutor responsável"
+                  placeholder="Nome do instrutor"
+                  value={formData.instructorName}
+                  onChange={(e) => setFormData((p) => ({ ...p, instructorName: e.target.value }))}
+                />
+                <Input
+                  label="Qualificação do instrutor"
+                  placeholder="Ex: Eng. de Segurança do Trabalho — CREA 000000"
+                  value={formData.instructorTitle}
+                  onChange={(e) => setFormData((p) => ({ ...p, instructorTitle: e.target.value }))}
+                />
+                <p className="text-xs text-gray-500">Validade gera o "Válido até" (reciclagem). Ex.: NR-35 = 24 meses.</p>
+              </div>
 
               <div className="flex flex-col gap-1.5 w-full">
                 <label htmlFor="price" className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">

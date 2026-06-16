@@ -1,6 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { certificates, courses, modules, lessons, progress, users } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -101,11 +101,17 @@ export async function certificateRoutes(app: FastifyInstance) {
         .select({
           id: certificates.id,
           userId: certificates.userId,
+          courseId: certificates.courseId,
           issuedAt: certificates.issuedAt,
           studentName: users.name,
+          studentCpf: users.cpf,
           courseTitle: courses.title,
           courseCategory: courses.category,
           durationHours: courses.durationHours,
+          nrReference: courses.nrReference,
+          validityMonths: courses.validityMonths,
+          instructorName: courses.instructorName,
+          instructorTitle: courses.instructorTitle,
         })
         .from(certificates)
         .innerJoin(courses, eq(courses.id, certificates.courseId))
@@ -121,13 +127,26 @@ export async function certificateRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: 'Forbidden' });
       }
 
+      // Conteúdo programático = títulos dos módulos do curso
+      const courseModules = await db
+        .select({ title: modules.title })
+        .from(modules)
+        .where(eq(modules.courseId, cert.courseId))
+        .orderBy(asc(modules.orderIndex));
+
       const pdf = await generateCourseCertificatePdf({
         studentName: cert.studentName,
+        studentCpf: cert.studentCpf || '',
         courseTitle: cert.courseTitle,
         category: cert.courseCategory,
         durationHours: cert.durationHours,
         issuedAt: cert.issuedAt as unknown as Date,
         code: certificateCode(cert.id, cert.issuedAt as unknown as Date),
+        nrReference: cert.nrReference || '',
+        validityMonths: cert.validityMonths || 0,
+        instructorName: cert.instructorName || '',
+        instructorTitle: cert.instructorTitle || '',
+        syllabus: courseModules.map((m) => m.title),
       });
 
       const safeTitle = cert.courseTitle.replace(/[^a-zA-Z0-9]+/g, '_').slice(0, 40);

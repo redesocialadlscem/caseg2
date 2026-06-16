@@ -15,6 +15,10 @@ const createCourseSchema = z.object({
   price: z.number().min(0).max(1_000_000).optional(), // 0 = gratuito
   durationHours: z.number().min(0).max(10_000).optional(), // carga horária (NR)
   updatedAt: z.coerce.date().optional(), // data de revisão do conteúdo
+  nrReference: z.string().max(60).optional(),
+  validityMonths: z.number().int().min(0).max(600).optional(),
+  instructorName: z.string().max(160).optional(),
+  instructorTitle: z.string().max(200).optional(),
 });
 
 const updateCourseSchema = z.object({
@@ -27,6 +31,10 @@ const updateCourseSchema = z.object({
   price: z.number().min(0).max(1_000_000).optional(),
   durationHours: z.number().min(0).max(10_000).optional(),
   updatedAt: z.coerce.date().optional(),
+  nrReference: z.string().max(60).optional(),
+  validityMonths: z.number().int().min(0).max(600).optional(),
+  instructorName: z.string().max(160).optional(),
+  instructorTitle: z.string().max(200).optional(),
 });
 
 const idParamSchema = z.object({
@@ -110,6 +118,10 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         durationHours: courses.durationHours,
         createdAt: courses.createdAt,
         updatedAt: courses.updatedAt,
+        nrReference: courses.nrReference,
+        validityMonths: courses.validityMonths,
+        instructorName: courses.instructorName,
+        instructorTitle: courses.instructorTitle,
       })
         .from(courses)
         .orderBy(desc(courses.createdAt));

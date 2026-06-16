@@ -29,6 +29,13 @@ async function migrate() {
   await client.execute("UPDATE courses SET updated_at = COALESCE(updated_at, created_at, unixepoch())");
   await addColumnIfMissing('users', "is_active INTEGER NOT NULL DEFAULT 1");
 
+  // Conformidade NR
+  await addColumnIfMissing('users', "cpf TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('courses', "nr_reference TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('courses', "validity_months INTEGER NOT NULL DEFAULT 0");
+  await addColumnIfMissing('courses', "instructor_name TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('courses', "instructor_title TEXT NOT NULL DEFAULT ''");
+
   await client.execute(`
     CREATE TABLE IF NOT EXISTS enrollments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

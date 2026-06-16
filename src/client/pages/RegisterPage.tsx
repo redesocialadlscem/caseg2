@@ -14,6 +14,7 @@ export function RegisterPage() {
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [cpf, setCpf] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
@@ -35,7 +36,7 @@ export function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(email.trim(), name.trim(), password);
+      await register(email.trim(), name.trim(), password, cpf.trim());
       navigate('/dashboard', { replace: true });
     } catch {
       // Error is already set in useAuth context
@@ -101,6 +102,16 @@ export function RegisterPage() {
                   disabled={loading}
                   autoComplete="email"
                 />
+                <Input
+                  label="CPF"
+                  placeholder="000.000.000-00"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  disabled={loading}
+                  inputMode="numeric"
+                  autoComplete="off"
+                />
+                <p className="-mt-2 text-xs text-gray-500">Necessário para emitir certificados de NR no seu nome.</p>
                 <Input
                   label="Senha"
                   type="password"

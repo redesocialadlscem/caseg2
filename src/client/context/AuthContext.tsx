@@ -8,7 +8,7 @@ interface AuthContextValue {
   error: string | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<User>;
-  register: (email: string, name: string, password: string) => Promise<User>;
+  register: (email: string, name: string, password: string, cpf?: string) => Promise<User>;
   logout: () => void;
   refresh: () => Promise<string | null>;
   setError: (error: string | null) => void;

@@ -12,6 +12,15 @@ interface CertificateRenderOptions {
   /** Código de verificação exibido no rodapé. */
   code?: string;
   title?: string;
+  // ─── Campos de conformidade NR (opcionais) ───
+  cpf?: string;
+  nrReference?: string;
+  /** Conteúdo programático (ex.: títulos dos módulos). */
+  syllabus?: string[];
+  /** Ex.: "Válido até: 15 de junho de 2028" */
+  validUntilLabel?: string;
+  instructorName?: string;
+  instructorTitle?: string;
 }
 
 /**
@@ -64,46 +73,80 @@ function renderCertificate(opts: CertificateRenderOptions): Promise<Buffer> {
     doc.fontSize(14)
       .font('Helvetica-Bold')
       .fillColor(BRAND_GREEN)
-      .text('CASEG PROTEGE', 50, 110, { align: 'center', width: W - 100 });
+      .text('CASEG PROTEGE', 50, 104, { align: 'center', width: W - 100 });
+
+    // ── Norma de referência (NR) ──
+    if (opts.nrReference) {
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#333333')
+        .text(`Norma de referência: ${opts.nrReference}`, 50, 124, { align: 'center', width: W - 100 });
+    }
 
     // ── "Certificamos que" ──
     doc.fontSize(12)
       .font('Helvetica')
       .fillColor('#333333')
-      .text('Certificamos que', 50, 145, { align: 'center', width: W - 100 });
+      .text('Certificamos que', 50, opts.nrReference ? 144 : 138, { align: 'center', width: W - 100 });
 
     // ── Nome do participante (destaque) ──
-    doc.fontSize(32)
+    doc.fontSize(28)
       .font('Helvetica-Bold')
       .fillColor(BLACK)
-      .text(opts.recipientName.toUpperCase(), 50, 170, { align: 'center', width: W - 100 });
+      .text(opts.recipientName.toUpperCase(), 50, 162, { align: 'center', width: W - 100 });
+
+    // ── CPF (conformidade NR) ──
+    if (opts.cpf) {
+      doc.fontSize(11).font('Helvetica').fillColor('#555555')
+        .text(`CPF: ${opts.cpf}`, 50, 196, { align: 'center', width: W - 100 });
+    }
 
     // ── Linha decorativa sob o nome ──
-    const nameY = 215;
-    doc.moveTo(200, nameY).lineTo(W - 200, nameY).lineWidth(3).strokeColor(BRAND_GREEN).stroke();
+    const nameY = opts.cpf ? 214 : 206;
+    doc.moveTo(220, nameY).lineTo(W - 220, nameY).lineWidth(2.5).strokeColor(BRAND_GREEN).stroke();
 
     // ── Corpo ──
-    doc.fontSize(13)
+    doc.fontSize(12.5)
       .font('Helvetica')
       .fillColor('#333333')
-      .text(opts.bodyText, 80, 235, { align: 'center', width: W - 160, lineGap: 6 });
+      .text(opts.bodyText, 80, nameY + 14, { align: 'center', width: W - 160, lineGap: 5 });
 
-    // ── Data ──
-    doc.fontSize(11)
-      .font('Helvetica')
-      .fillColor('#555555')
-      .text(opts.dateLabel, 50, 320, { align: 'center', width: W - 100 });
+    let cursorY = nameY + 64;
 
-    // ── Selo / Badge quadrado ──
-    const badgeX = W / 2 - 40;
-    const badgeY = 360;
-    const badgeSize = 80;
-    doc.rect(badgeX + 4, badgeY + 4, badgeSize, badgeSize).fill(BLACK); // sombra dura
-    doc.rect(badgeX, badgeY, badgeSize, badgeSize).lineWidth(3).strokeColor(BLACK).fill(BRAND_GREEN);
-    doc.fontSize(36)
-      .font('Helvetica-Bold')
-      .fillColor(WHITE)
-      .text('✓', badgeX, badgeY + 20, { align: 'center', width: badgeSize });
+    // ── Conteúdo programático ──
+    if (opts.syllabus && opts.syllabus.length) {
+      const conteudo = opts.syllabus.join(' · ').slice(0, 400);
+      doc.fontSize(9.5).font('Helvetica-Oblique').fillColor('#555555')
+        .text(`Conteúdo programático: ${conteudo}`, 90, cursorY, { align: 'center', width: W - 180, lineGap: 2 });
+      cursorY += 32;
+    }
+
+    // ── Datas (emissão + validade) ──
+    const dates = opts.validUntilLabel ? `${opts.dateLabel}      ·      ${opts.validUntilLabel}` : opts.dateLabel;
+    doc.fontSize(11).font('Helvetica').fillColor('#555555')
+      .text(dates, 50, cursorY, { align: 'center', width: W - 100 });
+    cursorY += 26;
+
+    // ── Assinatura do instrutor (NR) ou selo decorativo ──
+    if (opts.instructorName) {
+      const sigW = 280;
+      const sigX = W / 2 - sigW / 2;
+      const sigY = Math.min(Math.max(cursorY + 28, 432), 462);
+      doc.moveTo(sigX, sigY).lineTo(sigX + sigW, sigY).lineWidth(1.5).strokeColor(BLACK).stroke();
+      doc.fontSize(11).font('Helvetica-Bold').fillColor(BLACK)
+        .text(opts.instructorName, sigX, sigY + 6, { align: 'center', width: sigW });
+      let sy = sigY + 21;
+      if (opts.instructorTitle) {
+        doc.fontSize(9).font('Helvetica').fillColor('#666666')
+          .text(opts.instructorTitle, sigX, sy, { align: 'center', width: sigW });
+        sy += 13;
+      }
+      doc.fontSize(8).font('Helvetica').fillColor('#999999')
+        .text('Instrutor responsável', sigX, sy, { align: 'center', width: sigW });
+    } else {
+      const badgeX = W / 2 - 35, badgeY = 440, badgeSize = 64;
+      doc.rect(badgeX + 4, badgeY + 4, badgeSize, badgeSize).fill(BLACK);
+      doc.rect(badgeX, badgeY, badgeSize, badgeSize).lineWidth(3).strokeColor(BLACK).fill(BRAND_GREEN);
+      doc.fontSize(30).font('Helvetica-Bold').fillColor(WHITE).text('✓', badgeX, badgeY + 16, { align: 'center', width: badgeSize });
+    }
 
     // ── Rodapé ──
     doc.rect(30, H - 92, W - 60, 62).fill('#F5F5F5');
@@ -149,11 +192,25 @@ export function generateCertificatePdf(data: LiveCertificateData): Promise<Buffe
 // ─── Certificado de Conclusão de Curso ───────────────────────────────────────
 interface CourseCertificateData {
   studentName: string;
+  studentCpf?: string;
   courseTitle: string;
   category?: string;
   durationHours: number;
   issuedAt: string | number | Date;
   code?: string;
+  nrReference?: string;
+  validityMonths?: number;
+  instructorName?: string;
+  instructorTitle?: string;
+  syllabus?: string[];
+}
+
+/** Soma `months` meses a uma data. */
+function addMonths(value: string | number | Date, months: number): Date {
+  const d = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
+  const out = new Date(d);
+  out.setMonth(out.getMonth() + months);
+  return out;
 }
 
 export function generateCourseCertificatePdf(data: CourseCertificateData): Promise<Buffer> {
@@ -162,10 +219,17 @@ export function generateCourseCertificatePdf(data: CourseCertificateData): Promi
   const body = `concluiu com êxito o curso "${data.courseTitle}"${cat}, `
     + `com carga horária de ${hours} hora${hours === 1 ? '' : 's'}, `
     + 'cumprindo todos os requisitos de aprovação.';
+  const validity = Number(data.validityMonths) || 0;
   return renderCertificate({
     recipientName: data.studentName,
+    cpf: data.studentCpf || undefined,
     bodyText: body,
     dateLabel: `Emitido em: ${formatPtDate(data.issuedAt)}`,
+    validUntilLabel: validity > 0 ? `Válido até: ${formatPtDate(addMonths(data.issuedAt, validity))}` : undefined,
+    nrReference: data.nrReference || undefined,
+    syllabus: data.syllabus && data.syllabus.length ? data.syllabus : undefined,
+    instructorName: data.instructorName || undefined,
+    instructorTitle: data.instructorTitle || undefined,
     code: data.code,
   });
 }

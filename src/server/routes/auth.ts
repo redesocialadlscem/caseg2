@@ -36,6 +36,7 @@ const registerSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2),
   password: z.string().min(6),
+  cpf: z.string().max(20).optional().default(''), // CPF do trabalhador (conformidade NR)
 });
 
 const loginSchema = z.object({
@@ -55,7 +56,7 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid input', details: parsed.error.flatten() });
     }
 
-    const { email, name, password } = parsed.data;
+    const { email, name, password, cpf } = parsed.data;
 
     // Check if user already exists
     const existing = await db.select().from(users).where(eq(users.email, email)).get();
@@ -68,6 +69,7 @@ export async function authRoutes(app: FastifyInstance) {
     const result = await db.insert(users).values({
       email,
       name,
+      cpf: (cpf || '').trim(),
       passwordHash,
       role: 'student',
     }).returning();
