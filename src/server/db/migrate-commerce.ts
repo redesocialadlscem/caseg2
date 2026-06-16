@@ -18,7 +18,10 @@ async function addColumnIfMissing(table: string, columnDef: string) {
 async function migrate() {
   console.log('🔧 Criando tabelas de matrículas e pagamentos...');
 
-  // Sincroniza colunas que seeds antigos não criavam (schema drift)
+  // Sincroniza colunas que tabelas antigas não tinham (schema drift).
+  // A tabela `courses` legada não tinha image_url/is_featured/price.
+  await addColumnIfMissing('courses', "image_url TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('courses', "is_featured INTEGER NOT NULL DEFAULT 0");
   await addColumnIfMissing('courses', "price REAL NOT NULL DEFAULT 0");
   await addColumnIfMissing('users', "is_active INTEGER NOT NULL DEFAULT 1");
 
