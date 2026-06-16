@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
 // ─── Users ───────────────────────────────────────────────────────────────────
@@ -78,6 +78,56 @@ export const certificates = sqliteTable('certificates', {
     .notNull()
     .default(sql`(unixepoch())`),
   pdfPath: text('pdf_path').notNull().default(''),
+});
+
+// ─── Enrollments (Matrículas / posse de curso) ───────────────────────────────
+export const enrollments = sqliteTable(
+  'enrollments',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    userId: integer('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    courseId: integer('course_id')
+      .notNull()
+      .references(() => courses.id, { onDelete: 'cascade' }),
+    // Como o aluno obteve acesso ao curso
+    source: text('source', { enum: ['purchase', 'free', 'admin', 'corporate'] })
+      .notNull()
+      .default('purchase'),
+    createdAt: integer('created_at', { mode: 'timestamp' })
+      .notNull()
+      .default(sql`(unixepoch())`),
+  },
+  (table) => ({
+    // Um aluno só pode estar matriculado uma vez por curso
+    userCourseUnique: uniqueIndex('enrollments_user_course_unique').on(
+      table.userId,
+      table.courseId,
+    ),
+  }),
+);
+
+// ─── Payments (Pagamentos / idempotência do webhook) ─────────────────────────
+export const payments = sqliteTable('payments', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: integer('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  provider: text('provider').notNull().default('mercadopago'),
+  // ID do pagamento no provedor — UNIQUE garante idempotência (não processa 2x)
+  providerPaymentId: text('provider_payment_id').notNull().unique(),
+  preferenceId: text('preference_id').notNull().default(''),
+  status: text('status').notNull().default('pending'), // pending | approved | rejected | refunded | cancelled
+  amount: real('amount').notNull().default(0),
+  courseIds: text('course_ids').notNull().default('[]'), // JSON array de IDs
+  rawPayload: text('raw_payload').notNull().default(''), // payload bruto do webhook (auditoria)
+  createdAt: integer('created_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
 });
 
 // ─── News ────────────────────────────────────────────────────────────────────
@@ -262,6 +312,12 @@ export type NewProgress = typeof progress.$inferInsert;
 
 export type Certificate = typeof certificates.$inferSelect;
 export type NewCertificate = typeof certificates.$inferInsert;
+
+export type Enrollment = typeof enrollments.$inferSelect;
+export type NewEnrollment = typeof enrollments.$inferInsert;
+
+export type Payment = typeof payments.$inferSelect;
+export type NewPayment = typeof payments.$inferInsert;
 
 export type News = typeof news.$inferSelect;
 export type NewNews = typeof news.$inferInsert;

@@ -22,13 +22,25 @@ interface Course {
   createdAt: string;
 }
 
+interface SyllabusLesson {
+  id: number;
+  title: string;
+}
+
+interface SyllabusModule {
+  id: number;
+  title: string;
+  lessons: SyllabusLesson[];
+}
+
 export function CourseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuthContext();
+  const { isAuthenticated, accessToken } = useAuthContext();
   const { addItem, isInCart } = useCart();
   
   const [course, setCourse] = useState<Course | null>(null);
+  const [syllabus, setSyllabus] = useState<SyllabusModule[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,23 +49,34 @@ export function CourseDetailPage() {
 
     async function fetchCourse() {
       if (!id) return;
-      
+
       setLoading(true);
       setError(null);
 
       try {
         const res = await fetch(`/api/courses/${id}`);
-        
+
         if (res.status === 404) {
           throw new Error('Curso não encontrado');
         }
-        
+
         if (!res.ok) {
           throw new Error('Erro ao carregar curso');
         }
 
         const data = await res.json();
         if (!cancelled) setCourse(data);
+
+        // Ementa pública (módulos + aulas) — best-effort, não bloqueia a página
+        try {
+          const sylRes = await fetch(`/api/courses/${id}/syllabus`);
+          if (sylRes.ok && !cancelled) {
+            const sylData = await sylRes.json();
+            setSyllabus(sylData.modules || []);
+          }
+        } catch {
+          /* ementa é opcional */
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : 'Erro desconhecido');
@@ -94,7 +117,10 @@ export function CourseDetailPage() {
     try {
       const res = await fetch('/api/payments/create-preference', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({ courseId: String(course.id) }),
       });
 
@@ -113,10 +139,22 @@ export function CourseDetailPage() {
     }
   }
 
-  function handleStartCourse() {
+  async function handleStartCourse() {
     if (!isAuthenticated) {
       navigate('/login', { state: { from: { pathname: `/courses/${id}/player` } } });
       return;
+    }
+    // Curso gratuito: registra a matrícula antes de abrir o player.
+    // (Cursos pagos passam por handleBuyCourse / carrinho.)
+    if (course && course.price <= 0) {
+      try {
+        await fetch(`/api/courses/${course.id}/enroll`, {
+          method: 'POST',
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+        });
+      } catch {
+        // não bloqueia o acesso ao player se o registro falhar
+      }
     }
     navigate(`/courses/${id}/player`);
   }
@@ -331,50 +369,43 @@ export function CourseDetailPage() {
               </ul>
             </Card>
 
-            {/* Grade Curricular (Visual Only - Real data comes from player endpoint) */}
-            <Card className="p-6 sm:p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <BookOpen size={24} className="text-brand" strokeWidth={2.5} />
-                <h2 className="text-2xl font-display font-bold uppercase">Conteúdo Programático</h2>
-              </div>
-              
-              <div className="space-y-4">
-                {[1, 2, 3].map((mod) => (
-                  <div key={mod} className="border-2 border-black rounded-xl overflow-hidden">
-                    <div className="bg-emerald-50 px-6 py-4 border-b-2 border-black flex items-center justify-between">
-                      <h3 className="font-display font-bold uppercase flex items-center gap-3">
-                        <span className="inline-flex items-center justify-center w-8 h-8 bg-brand text-white text-sm font-bold border-2 border-black rounded-lg shadow-brutal-sm">
-                          {mod}
-                        </span>
-                        Módulo {mod}: Fundamentos Essenciais
-                      </h3>
-                      <span className="text-xs font-bold uppercase text-gray-600 bg-white px-3 py-1 border-2 border-black rounded-lg shadow-brutal-sm">
-                        4 Aulas
-                      </span>
-                    </div>
-                    <div className="divide-y-2 divide-black/10">
-                      {[1, 2, 3, 4].map((lesson) => (
-                        <div key={lesson} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
-                          <FileText size={18} className="text-gray-400" strokeWidth={2.5} />
-                          <span className="text-gray-700 font-medium flex-1">
-                            Aula {lesson}: Introdução aos conceitos fundamentais
-                          </span>
-                          <span className="text-xs font-bold uppercase text-gray-400">
-                            15 min
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* Grade Curricular — dados reais via /api/courses/:id/syllabus */}
+            {syllabus.length > 0 && (
+              <Card className="p-6 sm:p-8">
+                <div className="flex items-center gap-3 mb-6">
+                  <BookOpen size={24} className="text-brand" strokeWidth={2.5} />
+                  <h2 className="text-2xl font-display font-bold uppercase">Conteúdo Programático</h2>
+                </div>
 
-              <div className="mt-6 p-4 bg-emerald-50/50 border-2 border-dashed border-black/30 rounded-xl text-center">
-                <p className="text-sm font-bold uppercase text-gray-600">
-                  Grade completa disponível após início do curso
-                </p>
-              </div>
-            </Card>
+                <div className="space-y-4">
+                  {syllabus.map((mod, modIdx) => (
+                    <div key={mod.id} className="border-2 border-black rounded-xl overflow-hidden">
+                      <div className="bg-emerald-50 px-6 py-4 border-b-2 border-black flex items-center justify-between gap-3">
+                        <h3 className="font-display font-bold uppercase flex items-center gap-3">
+                          <span className="inline-flex items-center justify-center w-8 h-8 bg-brand text-white text-sm font-bold border-2 border-black rounded-lg shadow-brutal-sm shrink-0">
+                            {modIdx + 1}
+                          </span>
+                          {mod.title}
+                        </h3>
+                        <span className="text-xs font-bold uppercase text-gray-600 bg-white px-3 py-1 border-2 border-black rounded-lg shadow-brutal-sm whitespace-nowrap">
+                          {mod.lessons.length} {mod.lessons.length === 1 ? 'Aula' : 'Aulas'}
+                        </span>
+                      </div>
+                      {mod.lessons.length > 0 && (
+                        <div className="divide-y-2 divide-black/10">
+                          {mod.lessons.map((lesson) => (
+                            <div key={lesson.id} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50 transition-colors">
+                              <FileText size={18} className="text-gray-400 shrink-0" strokeWidth={2.5} />
+                              <span className="text-gray-700 font-medium flex-1">{lesson.title}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            )}
           </div>
 
           {/* Sidebar Info */}

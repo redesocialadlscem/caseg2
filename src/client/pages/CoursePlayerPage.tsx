@@ -68,6 +68,12 @@ export function CoursePlayerPage() {
           headers: { Authorization: `Bearer ${accessToken}` }
         });
 
+        // Sem matrícula: leva o aluno ao detalhe do curso para adquirir
+        if (res.status === 403) {
+          navigate(`/courses/${courseId}`, { replace: true });
+          return;
+        }
+
         if (!res.ok) throw new Error('Failed to load course');
         
         const json: PlayerData = await res.json();

@@ -4,6 +4,7 @@ import { desc, eq, and, like, sql, asc } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { courses, modules, lessons, progress } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { canAccessCourse, ensureEnrollment, isFreeCourse, isEnrolled } from '../lib/enrollment.js';
 
 const listQuerySchema = z.object({
   search: z.string().optional(),
@@ -107,6 +108,37 @@ export async function courseRoutes(app: FastifyInstance) {
     return reply.send(course);
   });
 
+  // GET /api/courses/:id/syllabus — ementa pública (módulos + títulos das aulas, sem vídeo/conteúdo)
+  app.get('/api/courses/:id/syllabus', async (request, reply) => {
+    const params = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'Invalid course id' });
+    }
+
+    const course = await db.select({ id: courses.id }).from(courses)
+      .where(and(eq(courses.id, params.data.id), eq(courses.isActive, true)))
+      .get();
+    if (!course) {
+      return reply.status(404).send({ error: 'Course not found' });
+    }
+
+    const courseModules = await db.select({ id: modules.id, title: modules.title, orderIndex: modules.orderIndex })
+      .from(modules)
+      .where(eq(modules.courseId, params.data.id))
+      .orderBy(asc(modules.orderIndex));
+
+    const result = [];
+    for (const m of courseModules) {
+      const lessonRows = await db.select({ id: lessons.id, title: lessons.title, orderIndex: lessons.orderIndex })
+        .from(lessons)
+        .where(eq(lessons.moduleId, m.id))
+        .orderBy(asc(lessons.orderIndex));
+      result.push({ id: m.id, title: m.title, lessons: lessonRows });
+    }
+
+    return reply.send({ modules: result });
+  });
+
   // GET /api/courses/:courseId/player — estrutura completa do curso para o player (protegido)
   app.get('/api/courses/:courseId/player', {
     preHandler: authMiddleware,
@@ -127,6 +159,16 @@ export async function courseRoutes(app: FastifyInstance) {
 
       if (!course) {
         return reply.status(404).send({ error: 'Course not found' });
+      }
+
+      // 1b. Verifica acesso: admin, matriculado ou curso gratuito.
+      // Sem isso, qualquer usuário logado abriria o conteúdo de cursos pagos.
+      const allowed = await canAccessCourse(userId, request.user!.role, courseId);
+      if (!allowed) {
+        return reply.status(403).send({
+          error: 'not_enrolled',
+          message: 'Você precisa adquirir este curso para acessá-lo.',
+        });
       }
 
       // 2. Buscar módulos ordenados
@@ -193,6 +235,46 @@ export async function courseRoutes(app: FastifyInstance) {
     } catch (error) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to fetch course player data' });
+    }
+  });
+
+  // POST /api/courses/:courseId/enroll — matrícula direta (apenas cursos gratuitos)
+  // Cursos pagos só são liberados via webhook do Mercado Pago após pagamento aprovado.
+  app.post('/api/courses/:courseId/enroll', {
+    preHandler: authMiddleware,
+  }, async (request, reply) => {
+    const params = z.object({ courseId: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'Invalid course id' });
+    }
+
+    const userId = request.user!.userId;
+    const { courseId } = params.data;
+
+    try {
+      const course = await db.select({ id: courses.id }).from(courses)
+        .where(and(eq(courses.id, courseId), eq(courses.isActive, true)))
+        .get();
+      if (!course) {
+        return reply.status(404).send({ error: 'Course not found' });
+      }
+
+      if (await isEnrolled(userId, courseId)) {
+        return reply.send({ enrolled: true, alreadyEnrolled: true });
+      }
+
+      if (!(await isFreeCourse(courseId))) {
+        return reply.status(402).send({
+          error: 'payment_required',
+          message: 'Este curso é pago. Conclua a compra para se matricular.',
+        });
+      }
+
+      await ensureEnrollment(userId, courseId, 'free');
+      return reply.status(201).send({ enrolled: true });
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to enroll' });
     }
   });
 }

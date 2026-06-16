@@ -5,9 +5,32 @@ import { OAuth2Client } from 'google-auth-library';
 import { db } from '../db/index.js';
 import { users } from '../db/schema.js';
 import { hashPassword, verifyPassword } from '../lib/password.js';
-import { signAccessToken, signRefreshToken, verifyToken } from '../lib/jwt.js';
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../lib/jwt.js';
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// ─── Rate limiting de login (in-memory, janela deslizante) ───────────────────
+// Suficiente para deploy single-instância. Em cluster, trocar por Redis.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000; // 15 min
+const LOGIN_MAX_ATTEMPTS = 8;
+const loginAttempts = new Map<string, number[]>();
+
+function rateLimitKey(ip: string, email: string): string {
+  return `${ip}:${email.toLowerCase()}`;
+}
+
+/** Retorna true se ainda está dentro do limite (pode tentar). */
+function checkLoginRateLimit(key: string): boolean {
+  const now = Date.now();
+  const hits = (loginAttempts.get(key) || []).filter(t => now - t < LOGIN_WINDOW_MS);
+  hits.push(now);
+  loginAttempts.set(key, hits);
+  return hits.length <= LOGIN_MAX_ATTEMPTS;
+}
+
+function resetLoginRateLimit(key: string): void {
+  loginAttempts.delete(key);
+}
 
 const registerSchema = z.object({
   email: z.string().email(),
@@ -83,15 +106,34 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { email, password } = parsed.data;
 
+    const rlKey = rateLimitKey(request.ip, email);
+    if (!checkLoginRateLimit(rlKey)) {
+      return reply.status(429).send({
+        error: 'Too many login attempts. Try again in a few minutes.',
+      });
+    }
+
     const user = await db.select().from(users).where(eq(users.email, email)).get();
     if (!user) {
       return reply.status(401).send({ error: 'Invalid credentials' });
+    }
+
+    if (!user.passwordHash) {
+      // Conta criada via Google não tem senha local
+      return reply.status(401).send({ error: 'Use o login com Google para esta conta.' });
     }
 
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
       return reply.status(401).send({ error: 'Invalid credentials' });
     }
+
+    if (!user.isActive) {
+      return reply.status(403).send({ error: 'Account disabled' });
+    }
+
+    // Login bem-sucedido: zera o contador de tentativas
+    resetLoginRateLimit(rlKey);
 
     const accessToken = await signAccessToken({
       userId: user.id,
@@ -177,15 +219,18 @@ export async function authRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: 'Invalid input' });
     }
 
-    const payload = await verifyToken(parsed.data.refreshToken);
+    const payload = await verifyRefreshToken(parsed.data.refreshToken);
     if (!payload) {
       return reply.status(401).send({ error: 'Invalid or expired refresh token' });
     }
 
-    // Verify user still exists
+    // Verify user still exists and is active
     const user = await db.select().from(users).where(eq(users.id, payload.userId)).get();
     if (!user) {
       return reply.status(401).send({ error: 'User not found' });
+    }
+    if (!user.isActive) {
+      return reply.status(403).send({ error: 'Account disabled' });
     }
 
     const accessToken = await signAccessToken({

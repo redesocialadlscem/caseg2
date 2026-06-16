@@ -18,6 +18,7 @@ const CREATE_TABLES_SQL = [
     name TEXT NOT NULL,
     password_hash TEXT NOT NULL,
     role TEXT DEFAULT 'student' NOT NULL,
+    is_active INTEGER DEFAULT 1 NOT NULL,
     created_at INTEGER DEFAULT (unixepoch()) NOT NULL
   )`,
   `CREATE TABLE IF NOT EXISTS courses (
@@ -27,6 +28,7 @@ const CREATE_TABLES_SQL = [
     category TEXT DEFAULT '' NOT NULL,
     duration_hours REAL DEFAULT 0 NOT NULL,
     image_url TEXT DEFAULT '' NOT NULL,
+    price REAL DEFAULT 0 NOT NULL,
     is_featured INTEGER DEFAULT 0 NOT NULL,
     is_active INTEGER DEFAULT 1 NOT NULL,
     created_at INTEGER DEFAULT (unixepoch()) NOT NULL
