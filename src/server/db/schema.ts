@@ -172,6 +172,11 @@ export const liveSessions = sqliteTable('live_sessions', {
   certMinAttendancePct: integer('cert_min_attendance_pct').notNull().default(0),
   certMinAttentionPct: integer('cert_min_attention_pct').notNull().default(0),
   certMinResponsePct: integer('cert_min_response_pct').notNull().default(0),
+  // Conformidade NR (vão para o certificado da aula ao vivo)
+  nrReference: text('nr_reference').notNull().default(''),
+  validityMonths: integer('validity_months').notNull().default(0),
+  instructorName: text('instructor_name').notNull().default(''),
+  instructorTitle: text('instructor_title').notNull().default(''),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -183,7 +188,9 @@ export const liveSessionParticipants = sqliteTable('live_session_participants', 
   sessionId: integer('session_id')
     .notNull()
     .references(() => liveSessions.id, { onDelete: 'cascade' }),
-  employeeName: text('employee_name').notNull(),
+  employeeName: text('employee_name').notNull(), // identificador (nome da chamada)
+  fullName: text('full_name').notNull().default(''), // nome completo para o certificado
+  cpf: text('cpf').notNull().default(''), // CPF para o certificado (conformidade NR)
   companyCode: text('company_code').notNull(),
   joinedAt: integer('joined_at', { mode: 'timestamp' })
     .notNull()

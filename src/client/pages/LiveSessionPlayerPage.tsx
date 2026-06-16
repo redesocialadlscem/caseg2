@@ -10,6 +10,7 @@ import { useAuthContext } from '../context/AuthContext';
 import { StudentInteractionPanel } from '../components/live/StudentInteractionPanel';
 import { TeacherInteractionPanel } from '../components/live/TeacherInteractionPanel';
 import { LiveRankingPanel } from '../components/live/LiveRankingPanel';
+import { LiveIdentityCard } from '../components/live/LiveIdentityCard';
 
 // JaaS App ID padrão (público) — usado como fallback quando o backend não
 // devolve um appId (credenciais do JaaS não configuradas).
@@ -32,7 +33,7 @@ export function LiveSessionPlayerPage() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const stateData = location.state as { participantName?: string; jitsiRoom?: string; waitingRoom?: boolean } | null;
+  const stateData = location.state as { participantName?: string; jitsiRoom?: string; waitingRoom?: boolean; cpf?: string } | null;
   
   const [status, setStatus] = useState<SessionStatus>(stateData?.waitingRoom ? 'waiting' : 'waiting');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -396,7 +397,12 @@ export function LiveSessionPlayerPage() {
                   <LiveRankingPanel sessionId={Number(sessionId)} accessToken={accessToken} />
                 </>
               )
-              : <StudentInteractionPanel sessionId={Number(sessionId)} participantName={participantName} />
+              : (
+                <>
+                  <LiveIdentityCard sessionId={Number(sessionId)} participantName={participantName} initialCpf={stateData?.cpf} />
+                  <StudentInteractionPanel sessionId={Number(sessionId)} participantName={participantName} />
+                </>
+              )
           )}
 
           {/* Timer */}

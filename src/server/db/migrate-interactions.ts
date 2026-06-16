@@ -69,6 +69,14 @@ async function migrate() {
   await addColumnIfMissing('live_session_participants', 'presence_seconds INTEGER NOT NULL DEFAULT 0');
   await addColumnIfMissing('live_session_participants', 'last_seen_at INTEGER');
 
+  // Conformidade NR no fluxo ao vivo
+  await addColumnIfMissing('live_session_participants', "full_name TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('live_session_participants', "cpf TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('live_sessions', "nr_reference TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('live_sessions', "validity_months INTEGER NOT NULL DEFAULT 0");
+  await addColumnIfMissing('live_sessions', "instructor_name TEXT NOT NULL DEFAULT ''");
+  await addColumnIfMissing('live_sessions', "instructor_title TEXT NOT NULL DEFAULT ''");
+
   // Tipos avançados (5.1): keyword (resposta digitada) + flash (presença relâmpago).
   await addColumnIfMissing('interactions', 'correct_text TEXT');
   await addColumnIfMissing('interaction_responses', 'answer_text TEXT');

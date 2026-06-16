@@ -169,23 +169,38 @@ function formatPtDate(value: string | number | Date): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
 }
 
-// ─── Certificado de Aula ao Vivo (mantém a API existente) ────────────────────
+// ─── Certificado de Aula ao Vivo ─────────────────────────────────────────────
 interface LiveCertificateData {
   employeeName: string;
+  cpf?: string;
   companyCode: string;
   sessionTitle: string;
   courseName: string;
   completedAt: string;
   durationMinutes: number;
+  nrReference?: string;
+  validityMonths?: number;
+  instructorName?: string;
+  instructorTitle?: string;
 }
 
 export function generateCertificatePdf(data: LiveCertificateData): Promise<Buffer> {
+  const mins = Number(data.durationMinutes) || 0;
+  const carga = mins >= 60 && mins % 60 === 0
+    ? `${mins / 60} hora${mins / 60 === 1 ? '' : 's'}`
+    : `${mins} minutos`;
   const body = `concluiu com êxito a aula ao vivo "${data.sessionTitle}" (${data.courseName}), `
-    + `ministrada para a empresa ${data.companyCode}, com carga horária de ${data.durationMinutes} minutos.`;
+    + `ministrada para a empresa ${data.companyCode}, com carga horária de ${carga}.`;
+  const validity = Number(data.validityMonths) || 0;
   return renderCertificate({
     recipientName: data.employeeName,
+    cpf: data.cpf || undefined,
     bodyText: body,
     dateLabel: `Concluído em: ${formatPtDate(data.completedAt)}`,
+    validUntilLabel: validity > 0 ? `Válido até: ${formatPtDate(addMonths(data.completedAt, validity))}` : undefined,
+    nrReference: data.nrReference || undefined,
+    instructorName: data.instructorName || undefined,
+    instructorTitle: data.instructorTitle || undefined,
   });
 }
 

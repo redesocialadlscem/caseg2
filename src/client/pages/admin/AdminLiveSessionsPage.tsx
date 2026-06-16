@@ -50,7 +50,7 @@ export function AdminLiveSessionsPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'sessions' | 'certificates'>('sessions');
-  const [createForm, setCreateForm] = useState({ title: '', courseName: '', companyCode: '', date: '', time: '', duration: '60' });
+  const [createForm, setCreateForm] = useState({ title: '', courseName: '', companyCode: '', date: '', time: '', duration: '60', nrReference: '', validityMonths: '0', instructorName: '', instructorTitle: '' });
 
   const [downloadingZip, setDownloadingZip] = useState(false);
   const [issuingKey, setIssuingKey] = useState<string | null>(null);
@@ -192,11 +192,15 @@ export function AdminLiveSessionsPage() {
           companyCode: createForm.companyCode,
           scheduledAt,
           durationMinutes: Number(createForm.duration) || 60,
+          nrReference: createForm.nrReference,
+          validityMonths: Number(createForm.validityMonths) || 0,
+          instructorName: createForm.instructorName,
+          instructorTitle: createForm.instructorTitle,
         }),
       });
       if (res.ok) {
         setShowCreateModal(false);
-        setCreateForm({ title: '', courseName: '', companyCode: '', date: '', time: '', duration: '60' });
+        setCreateForm({ title: '', courseName: '', companyCode: '', date: '', time: '', duration: '60', nrReference: '', validityMonths: '0', instructorName: '', instructorTitle: '' });
         fetchSessions();
       }
     } catch { /* ignore */ }
@@ -528,6 +532,19 @@ export function AdminLiveSessionsPage() {
                   <Input label="Código da Empresa" placeholder="Ex: ALFA01" className="uppercase" value={createForm.companyCode} onChange={(e: any) => setCreateForm(f => ({ ...f, companyCode: e.target.value }))} />
                 </div>
                 <Input label="Curso Vinculado" placeholder="Selecione ou digite o curso" value={createForm.courseName} onChange={(e: any) => setCreateForm(f => ({ ...f, courseName: e.target.value }))} />
+
+                {/* Conformidade NR — vão para o certificado */}
+                <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50/70 p-4 space-y-3">
+                  <p className="text-xs font-display font-bold uppercase tracking-wide text-gray-600 flex items-center gap-1.5">
+                    <ShieldCheck size={14} /> Conformidade NR (vai no certificado)
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="Norma (NR)" placeholder="Ex: NR-35" value={createForm.nrReference} onChange={(e: any) => setCreateForm(f => ({ ...f, nrReference: e.target.value }))} />
+                    <Input label="Validade (meses)" placeholder="0 = sem validade" value={createForm.validityMonths} onChange={(e: any) => setCreateForm(f => ({ ...f, validityMonths: e.target.value }))} />
+                  </div>
+                  <Input label="Instrutor responsável" placeholder="Nome do instrutor" value={createForm.instructorName} onChange={(e: any) => setCreateForm(f => ({ ...f, instructorName: e.target.value }))} />
+                  <Input label="Qualificação do instrutor" placeholder="Ex: Eng. Seg. Trabalho — CREA 000000" value={createForm.instructorTitle} onChange={(e: any) => setCreateForm(f => ({ ...f, instructorTitle: e.target.value }))} />
+                </div>
               </div>
               <div className="px-6 py-4 border-t-2 border-black bg-gray-50 flex gap-3 justify-end">
                 <Button variant="outline" size="sm" onClick={() => setShowCreateModal(false)}>Cancelar</Button>

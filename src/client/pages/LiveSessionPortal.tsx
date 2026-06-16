@@ -13,6 +13,7 @@ export function LiveSessionPortal() {
   const navigate = useNavigate();
   const [companyCode, setCompanyCode] = useState('');
   const [employeeName, setEmployeeName] = useState('');
+  const [cpf, setCpf] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -33,6 +34,7 @@ export function LiveSessionPortal() {
         body: JSON.stringify({
           companyCode: companyCode.trim(),
           employeeName: employeeName.trim(),
+          cpf: cpf.trim(),
         }),
       });
 
@@ -50,6 +52,7 @@ export function LiveSessionPortal() {
             participantName: data.participantName,
             jitsiRoom: data.jitsiRoom,
             waitingRoom: data.waitingRoom === true,
+            cpf: cpf.trim(),
           },
         });
       }, 1200);
@@ -123,10 +126,10 @@ export function LiveSessionPortal() {
                   </div>
                 </div>
 
-                {/* Campo Nome do Funcionário */}
+                {/* Campo Nome Completo */}
                 <div className="relative">
                   <label className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">
-                    Nome do Funcionário
+                    Nome Completo
                   </label>
                   <div className="relative">
                     <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none">
@@ -139,10 +142,26 @@ export function LiveSessionPortal() {
                         setEmployeeName(e.target.value);
                         if (status === 'error') setStatus('idle');
                       }}
-                      placeholder="Seu nome completo"
+                      placeholder="Seu nome completo (como deve sair no certificado)"
                       className="w-full bg-white border-2 border-black rounded-xl pl-12 pr-4 py-3.5 font-body text-base placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow duration-150"
                     />
                   </div>
+                </div>
+
+                {/* Campo CPF (para o certificado) */}
+                <div className="relative">
+                  <label className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">
+                    CPF
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={cpf}
+                    onChange={(e) => setCpf(e.target.value)}
+                    placeholder="000.000.000-00"
+                    className="w-full bg-white border-2 border-black rounded-xl px-4 py-3.5 font-body text-base placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow duration-150"
+                  />
+                  <p className="mt-1.5 text-xs text-gray-500">Usado no seu certificado de conclusão. Você pode confirmar depois, dentro da aula.</p>
                 </div>
 
                 {/* Mensagem de Erro */}

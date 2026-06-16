@@ -17,6 +17,10 @@ const createSessionSchema = z.object({
   companyCode: z.string().min(1),
   scheduledAt: z.coerce.date(),
   durationMinutes: z.coerce.number().int().positive().default(60),
+  nrReference: z.string().max(60).optional(),
+  validityMonths: z.coerce.number().int().min(0).max(600).optional(),
+  instructorName: z.string().max(160).optional(),
+  instructorTitle: z.string().max(200).optional(),
 });
 
 const updateStatusSchema = z.object({
@@ -30,6 +34,13 @@ const idParamSchema = z.object({
 const accessSchema = z.object({
   companyCode: z.string().min(1),
   employeeName: z.string().min(1),
+  cpf: z.string().max(20).optional().default(''),
+});
+
+const identifySchema = z.object({
+  employeeName: z.string().min(1),
+  fullName: z.string().min(1).max(160),
+  cpf: z.string().max(20).optional().default(''),
 });
 
 const completeSchema = z.object({
@@ -125,6 +136,10 @@ export async function adminLiveSessionRoutes(app: FastifyInstance) {
           companyCode: parsed.data.companyCode.toUpperCase(),
           scheduledAt: parsed.data.scheduledAt,
           durationMinutes: parsed.data.durationMinutes,
+          nrReference: parsed.data.nrReference || '',
+          validityMonths: parsed.data.validityMonths || 0,
+          instructorName: parsed.data.instructorName || '',
+          instructorTitle: parsed.data.instructorTitle || '',
           jitsiRoom: '', // será preenchido após insert com o ID
         })
         .returning();
@@ -291,15 +306,20 @@ export async function adminLiveSessionRoutes(app: FastifyInstance) {
       // Gerar PDFs e adicionar ao ZIP
       for (const p of participants) {
         const pdfBuffer = await generateCertificatePdf({
-          employeeName: p.employeeName,
+          employeeName: p.fullName || p.employeeName,
+          cpf: p.cpf || '',
           companyCode: p.companyCode,
           sessionTitle: session.title,
           courseName: session.courseName,
           completedAt: p.completedAt?.toISOString() ?? new Date().toISOString(),
           durationMinutes: session.durationMinutes,
+          nrReference: session.nrReference || '',
+          validityMonths: session.validityMonths || 0,
+          instructorName: session.instructorName || '',
+          instructorTitle: session.instructorTitle || '',
         });
 
-        const safeName = p.employeeName.replace(/[^a-zA-Z0-9áàâãéèêíïóôõúüçÁÀÂÃÉÈÊÍÏÓÔÕÚÜÇ\s-]/gi, '').replace(/\s+/g, '_');
+        const safeName = (p.fullName || p.employeeName).replace(/[^a-zA-Z0-9áàâãéèêíïóôõúüçÁÀÂÃÉÈÊÍÏÓÔÕÚÜÇ\s-]/gi, '').replace(/\s+/g, '_');
         archive.append(pdfBuffer, { name: `${safeName}.pdf` });
       }
 
@@ -360,10 +380,12 @@ export async function handleLiveSessionAccess(app: FastifyInstance) {
         });
       }
 
-      // Registrar novo participante
+      // Registrar novo participante (nome completo = nome da chamada; CPF p/ certificado)
       await db.insert(liveSessionParticipants).values({
         sessionId: session.id,
         employeeName: parsed.data.employeeName,
+        fullName: parsed.data.employeeName,
+        cpf: (parsed.data.cpf || '').trim(),
         companyCode: parsed.data.companyCode.toUpperCase(),
       });
 
@@ -377,6 +399,24 @@ export async function handleLiveSessionAccess(app: FastifyInstance) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to access live session' });
     }
+  });
+
+  // POST /api/live-sessions/:id/identify — aluno confirma nome completo + CPF p/ o certificado
+  // (a "chamada" costuma ter nome porco; aqui ele corrige sem mudar o identificador).
+  app.post('/api/live-sessions/:id/identify', async (request, reply) => {
+    const idP = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!idP.success) return reply.status(400).send({ error: 'Invalid session id' });
+    const parsed = identifySchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: 'Invalid body', details: parsed.error.flatten() });
+    const updated = await db.update(liveSessionParticipants)
+      .set({ fullName: parsed.data.fullName.trim(), cpf: (parsed.data.cpf || '').trim() })
+      .where(and(
+        eq(liveSessionParticipants.sessionId, idP.data.id),
+        eq(liveSessionParticipants.employeeName, parsed.data.employeeName),
+      ))
+      .returning();
+    if (updated.length === 0) return reply.status(404).send({ error: 'Participant not found' });
+    return reply.send({ ok: true });
   });
 
   // GET /api/live-sessions/:id/status — polling público para sala de espera (sem auth)
