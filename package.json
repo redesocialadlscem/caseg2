@@ -17,6 +17,7 @@
     "db:setup": "npm run db:migrate-exams && npm run db:migrate-forum && npm run db:migrate-commerce && npm run db:migrate-interactions",
     "db:seed": "node --import tsx src/server/db/seed.ts",
     "create-admin": "node --import tsx scripts/create-admin.ts",
+    "db:migrate-images": "node --import tsx scripts/migrate-course-images.ts",
     "typecheck:server": "node ./node_modules/typescript/bin/tsc -p tsconfig.server.json"
   },
   "dependencies": {
