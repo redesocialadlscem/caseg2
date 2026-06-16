@@ -75,19 +75,19 @@ Outros achados:
 > Camada de interação em tempo real sobre o Jitsi. Tudo **configurável pelo professor**
 > (não dependemos de dados de curso pré-existentes). Spec detalhada no fim deste arquivo.
 
-- [ ] **5.0 MVP / vertical slice (o loop central)**
-  - [ ] Modelo de dados: `interactions` (banco reutilizável), `session_interactions` (ativações na aula), `interaction_responses`
-  - [ ] Tempo real via WebSocket (`@fastify/websocket`), sala por sessão
-  - [ ] Admin → **Banco de Interações**: CRUD (começar com Quiz, V/F, Enquete)
-  - [ ] Aula ao vivo: **painel do professor** (liberar + stats ao vivo) e **painel do aluno** (responder com timer) ao lado do Jitsi
-  - [ ] Loop completo: liberar → responder → estatística ao vivo
-- [ ] **5.1 Demais tipos**: Complete a frase, Palavra-chave, Presença relâmpago, Ordene os passos, Ligue as colunas, Imagem interativa (clique), Simulação de ocorrência
-- [ ] **5.2 Pontuação + Score de Atenção** (regras de pontos, cálculo, ranking ao vivo)
-- [ ] **5.3 Agendamento** (disparo manual + automático após X min / horário)
-- [ ] **5.4 Analytics** (relatório da turma + individual pós-aula)
-- [ ] **5.5 Certificação configurável** (presença/score/interações mínimas liberam ou bloqueiam o certificado)
-- [ ] **5.6 Banco reutilizável** (duplicar, compartilhar entre cursos, categorias, import/export)
-- [ ] **5.7 Antifraude básico + escala + polimento visual "SOC"** (alertas, ocorrências, decisões rápidas)
+- [x] **5.0 MVP / vertical slice (o loop central)** — DONE
+  - [x] Modelo de dados: `interactions` (banco reutilizável), `session_interactions` (ativações na aula), `interaction_responses`
+  - [x] Tempo real via **polling** (escolha do usuário; WebSocket fica como evolução futura), sala por sessão
+  - [x] Admin → **Banco de Interações**: CRUD (Quiz, V/F, Enquete)
+  - [x] Aula ao vivo: **painel do professor** (liberar + stats ao vivo) e **painel do aluno** (responder com timer) ao lado do Jitsi
+  - [x] Loop completo: liberar → responder → estatística ao vivo
+- [x] **5.1 Demais tipos** — DONE (parcial): **Palavra-chave / Complete a frase** (resposta digitada com normalização de acento/maiúscula) e **Presença relâmpago** (toque para confirmar). BACKLOG (exigem infra dedicada): Ordene os passos (drag-drop), Ligue as colunas, Imagem interativa (upload + hotspots), Simulação de ocorrência (motor de ramificação)
+- [x] **5.2 Pontuação + Score de Atenção** — DONE (regras de pontos, cálculo, ranking ao vivo `LiveRankingPanel`)
+- [ ] **5.3 Agendamento** (disparo manual + automático após X min / horário) — pendente
+- [x] **5.4 Analytics** — DONE (relatório da turma + individual pós-aula em `AdminLiveAnalyticsPage`)
+- [x] **5.5 Certificação configurável** — DONE (presença via heartbeat + score de atenção + % de respostas; gate no `/complete` com override `force`)
+- [x] **5.6 Banco reutilizável** — DONE (parcial): duplicar + categorias já existem. BACKLOG: compartilhar entre cursos, import/export
+- [ ] **5.7 Antifraude básico + escala + polimento visual "SOC"** — parcial: antifraude (1 resposta/participante via índice único) já existe; alertas/ocorrências/visual SOC pendentes
 
 ---
 
