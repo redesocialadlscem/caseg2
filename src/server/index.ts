@@ -27,6 +27,20 @@ async function start() {
     credentials: true,
   });
 
+  // Aceita corpo JSON vazio em POSTs de ação (ex.: /open, /close, /duplicate),
+  // já que o cliente sempre envia Content-Type: application/json. Sem isto o
+  // Fastify rejeita com 400 "Body cannot be empty".
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (body === '' || body === undefined || body === null) return done(null, {});
+    try {
+      done(null, JSON.parse(body as string));
+    } catch {
+      const err: any = new Error('Invalid JSON body');
+      err.statusCode = 400;
+      done(err, undefined);
+    }
+  });
+
   // Register routes
   await app.register(authRoutes);
   await app.register(courseRoutes);
