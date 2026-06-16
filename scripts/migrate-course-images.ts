@@ -1,70 +1,120 @@
 /**
  * Backfill das imagens dos cursos.
  *
- * Preenche `courses.image_url` (por TÍTULO) para cursos que estão sem imagem.
- * Self-contained: não depende de nenhum banco externo — usa o mapa abaixo,
- * que reflete as imagens curadas do seed. Só atualiza onde image_url está vazio,
- * então NÃO sobrescreve imagens que você já tenha configurado no admin.
+ * Este script nao depende de banco fonte. Ele usa a lista abaixo, garante a
+ * coluna courses.image_url e preenche somente cursos que ainda estao sem imagem.
  *
- * Uso: npm run db:migrate-images   (ou: node --import tsx scripts/migrate-course-images.ts)
+ * Uso: npm run db:migrate-images
  */
 import { createClient } from '@libsql/client';
 import { resolve } from 'node:path';
 
-const DB_PATH = resolve(process.cwd(), 'data/app.db');
+const databaseUrl = process.env.DATABASE_URL?.trim() || `file:${resolve(process.cwd(), 'data/app.db')}`;
 
-// título do curso → URL da imagem
-const IMAGE_BY_TITLE: Record<string, string> = {
-  'NR-10 Segurança em Instalações Elétricas': 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&h=400&fit=crop&q=80',
-  'NR-35 Trabalho em Altura': 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=400&fit=crop&q=80',
-  'NR-5 CIPA - Comissão Interna de Prevenção': 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600&h=400&fit=crop&q=80',
-  'NR-6 Equipamentos de Proteção Individual': 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=400&fit=crop&q=80',
-  'PGR - Programa de Gerenciamento de Riscos': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=400&fit=crop&q=80',
-  'NR-33 Espaços Confinados': 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=600&h=400&fit=crop&q=80',
-  'Brigada de Incêndio e Emergências': 'https://images.unsplash.com/photo-1563214814-c10427b3b31e?w=600&h=400&fit=crop&q=80',
-  'Primeiros Socorros para TST': 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&h=400&fit=crop&q=80',
-};
+const COURSE_IMAGES = [
+  {
+    id: 1,
+    title: 'NR-10 Seguranca em Instalacoes Eletricas',
+    url: 'https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 2,
+    title: 'NR-35 Trabalho em Altura',
+    url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 3,
+    title: 'NR-5 CIPA Comissao Interna de Prevencao',
+    url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 4,
+    title: 'NR-6 Equipamentos de Protecao Individual',
+    url: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 5,
+    title: 'PGR Programa de Gerenciamento de Riscos',
+    url: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 6,
+    title: 'NR-33 Espacos Confinados',
+    url: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 7,
+    title: 'Brigada de Incendio e Emergencias',
+    url: 'https://images.unsplash.com/photo-1563214814-c10427b3b31e?w=600&h=400&fit=crop&q=80',
+  },
+  {
+    id: 8,
+    title: 'Primeiros Socorros para TST',
+    url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=600&h=400&fit=crop&q=80',
+  },
+];
+
+function normalizeTitle(value: unknown) {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+const imageByTitle = new Map(COURSE_IMAGES.map((course) => [normalizeTitle(course.title), course.url]));
+const imageById = new Map(COURSE_IMAGES.map((course) => [course.id, course.url]));
 
 async function main() {
-  const db = createClient({ url: `file:${DB_PATH}` });
+  const db = createClient({ url: databaseUrl });
 
-  // Garante a coluna (caso a base seja legada e ainda não tenha image_url)
-  try {
+  const columns = await db.execute('PRAGMA table_info(courses)');
+  const hasImageUrl = columns.rows.some((row) => row.name === 'image_url');
+
+  if (!hasImageUrl) {
     await db.execute("ALTER TABLE courses ADD COLUMN image_url TEXT NOT NULL DEFAULT ''");
-  } catch (e: any) {
-    if (!String(e?.message).includes('duplicate column')) throw e;
+    console.log('Coluna courses.image_url criada.');
   }
 
-  console.log('🎯 Atualizando imagens dos cursos (apenas os sem imagem)...');
-  let updated = 0;
-  let skipped = 0;
+  console.log('Atualizando imagens dos cursos...');
 
-  for (const [title, url] of Object.entries(IMAGE_BY_TITLE)) {
-    // Só preenche se estiver vazio/nulo — não sobrescreve imagens já definidas
+  const courses = await db.execute('SELECT id, title, image_url FROM courses ORDER BY id');
+  let updated = 0;
+  let alreadyFilled = 0;
+  let withoutMatch = 0;
+
+  for (const course of courses.rows) {
+    const currentImage = String(course.image_url ?? '').trim();
+    if (currentImage) {
+      alreadyFilled++;
+      continue;
+    }
+
+    const url = imageByTitle.get(normalizeTitle(course.title)) || imageById.get(Number(course.id));
+    if (!url) {
+      withoutMatch++;
+      console.log(`Sem imagem mapeada: [${course.id}] ${course.title}`);
+      continue;
+    }
+
     const result = await db.execute({
-      sql: "UPDATE courses SET image_url = ? WHERE title = ? AND (image_url IS NULL OR image_url = '')",
-      args: [url, title],
+      sql: 'UPDATE courses SET image_url = ? WHERE id = ? AND (image_url IS NULL OR image_url = ?)',
+      args: [url, course.id, ''],
     });
+
     if (result.rowsAffected > 0) {
       updated += result.rowsAffected;
-      console.log(`   ✅ ${title}`);
-    } else {
-      skipped++;
+      console.log(`Atualizado: [${course.id}] ${course.title}`);
     }
   }
 
-  // Relatório dos que ainda estão sem imagem (título fora do mapa)
-  const semImagem = await db.execute("SELECT id, title FROM courses WHERE image_url IS NULL OR image_url = ''");
-  console.log(`\n🏁 ${updated} curso(s) atualizado(s), ${skipped} já estavam ok ou sem correspondência.`);
-  if (semImagem.rows.length > 0) {
-    console.log(`⚠️  ${semImagem.rows.length} curso(s) ainda SEM imagem (título não está no mapa — defina pelo admin):`);
-    for (const r of semImagem.rows) console.log(`   • [${r.id}] ${r.title}`);
-  }
-
+  console.log(`Concluido: ${updated} atualizado(s), ${alreadyFilled} ja tinham imagem, ${withoutMatch} sem mapa.`);
   db.close();
 }
 
 main().catch((err) => {
-  console.error('❌ Erro:', err?.message || err);
+  console.error('Erro:', err?.message || err);
   process.exit(1);
 });
