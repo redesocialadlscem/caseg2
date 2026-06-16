@@ -2,8 +2,92 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import { and, eq, desc, asc, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { interactions, sessionInteractions, interactionResponses, liveSessions } from '../db/schema.js';
+import { interactions, sessionInteractions, interactionResponses, liveSessions, liveSessionParticipants } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
+
+// ─── Regras de pontuação (gamificação) ───────────────────────────────────────
+export const SCORE = {
+  join: 10,        // entrou na aula
+  answer: 5,       // respondeu uma interação
+  correct: 5,      // resposta correta
+  fast: 3,         // respondeu em menos de fastThresholdMs
+  ignore: -10,     // interação liberada e não respondida
+  fastThresholdMs: 5000,
+};
+
+export interface RankingEntry {
+  name: string;
+  answered: number;
+  correct: number;
+  fast: number;
+  avgMs: number;
+  points: number;
+  attention: number; // 0-100
+}
+
+/**
+ * Calcula o ranking/pontuação de uma sessão a partir das respostas e participantes.
+ * Reutilizado pelo ranking ao vivo e pelo analytics pós-aula.
+ */
+export async function computeSessionRanking(
+  sessionId: number,
+): Promise<{ released: number; ranking: RankingEntry[] }> {
+  const releasedRows = await db
+    .select({ id: sessionInteractions.id })
+    .from(sessionInteractions)
+    .where(and(eq(sessionInteractions.sessionId, sessionId), sql`${sessionInteractions.openedAt} IS NOT NULL`));
+  const released = releasedRows.length;
+
+  const responses = await db
+    .select({
+      name: interactionResponses.participantName,
+      isCorrect: interactionResponses.isCorrect,
+      responseMs: interactionResponses.responseMs,
+    })
+    .from(interactionResponses)
+    .innerJoin(sessionInteractions, eq(sessionInteractions.id, interactionResponses.sessionInteractionId))
+    .where(eq(sessionInteractions.sessionId, sessionId));
+
+  const participants = await db
+    .select({ name: liveSessionParticipants.employeeName })
+    .from(liveSessionParticipants)
+    .where(eq(liveSessionParticipants.sessionId, sessionId));
+
+  interface Acc { name: string; answered: number; correct: number; fast: number; totalMs: number; }
+  const map = new Map<string, Acc>();
+  const ensure = (name: string): Acc => {
+    let e = map.get(name);
+    if (!e) { e = { name, answered: 0, correct: 0, fast: 0, totalMs: 0 }; map.set(name, e); }
+    return e;
+  };
+  for (const p of participants) ensure(p.name);
+  for (const r of responses) {
+    const e = ensure(r.name);
+    e.answered++;
+    if (r.isCorrect) e.correct++;
+    if ((r.responseMs || 0) < SCORE.fastThresholdMs) e.fast++;
+    e.totalMs += r.responseMs || 0;
+  }
+
+  const ranking: RankingEntry[] = [...map.values()].map((e) => {
+    const ignored = Math.max(0, released - e.answered);
+    const points = SCORE.join + e.answered * SCORE.answer + e.correct * SCORE.correct + e.fast * SCORE.fast + ignored * SCORE.ignore;
+    const respondedPct = released ? Math.min(1, e.answered / released) : 0;
+    const correctPct = e.answered ? e.correct / e.answered : 0;
+    const attention = Math.round((respondedPct * 0.7 + correctPct * 0.3) * 100);
+    return {
+      name: e.name,
+      answered: e.answered,
+      correct: e.correct,
+      fast: e.fast,
+      avgMs: e.answered ? Math.round(e.totalMs / e.answered) : 0,
+      points,
+      attention,
+    };
+  }).sort((a, b) => b.points - a.points);
+
+  return { released, ranking };
+}
 
 // ─── Schemas ─────────────────────────────────────────────────────────────────
 const interactionSchema = z.object({
@@ -251,6 +335,14 @@ export async function interactionsRoutes(app: FastifyInstance) {
       accuracy: total ? Math.round((correct / total) * 100) : 0,
       avgResponseMs: total ? Math.round(totalMs / total) : 0,
     });
+  });
+
+  // GET /api/admin/live-sessions/:id/ranking — pontuação/score de atenção ao vivo
+  app.get('/api/admin/live-sessions/:id/ranking', { preHandler: adminGuard }, async (request, reply) => {
+    const idP = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!idP.success) return reply.status(400).send({ error: 'Invalid session id' });
+    const data = await computeSessionRanking(idP.data.id);
+    return reply.send(data);
   });
 
   // ─── ALUNO (público — polling) ─────────────────────────────────────────────
