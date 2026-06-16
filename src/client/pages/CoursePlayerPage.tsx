@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  PlayCircle, CheckCircle2, ChevronDown, ChevronRight, 
+import {
+  PlayCircle, CheckCircle2, ChevronDown, ChevronRight,
   Lock, Loader2, AlertTriangle, ArrowLeft, ArrowRight,
-  BookOpen, FileText, ClipboardList
+  BookOpen, FileText, ClipboardList, Award, X
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { Button } from '../components/Button';
@@ -53,6 +53,7 @@ export function CoursePlayerPage() {
   const [expandedModules, setExpandedModules] = useState<Set<number>>(new Set());
   const [mobileTab, setMobileTab] = useState<'content' | 'syllabus'>('content');
   const [markingComplete, setMarkingComplete] = useState(false);
+  const [certCelebration, setCertCelebration] = useState(false);
 
   // Evaluation indicators per lesson
   const [lessonEvalFlags, setLessonEvalFlags] = useState<Record<number, { hasActivity: boolean; hasExam: boolean }>>({});
@@ -175,6 +176,10 @@ export function CoursePlayerPage() {
 
       if (!res.ok) throw new Error('Failed to update progress');
 
+      const result = await res.json().catch(() => ({}));
+      // Curso concluído → certificado emitido automaticamente pelo backend
+      if (result?.certificateIssued) setCertCelebration(true);
+
       // Update local state
       setData(prev => {
         if (!prev) return prev;
@@ -230,6 +235,29 @@ export function CoursePlayerPage() {
   // ─── Main Layout ────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white flex flex-col">
+      {/* Comemoração: curso concluído + certificado emitido */}
+      {certCelebration && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setCertCelebration(false)} />
+          <div className="relative w-full max-w-md bg-white border-2 border-black rounded-2xl shadow-brutal p-8 text-center">
+            <button onClick={() => setCertCelebration(false)} className="absolute top-4 right-4 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"><X size={18} /></button>
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-emerald-50 rounded-2xl border-2 border-black shadow-brutal mb-5">
+              <Award size={40} className="text-brand" strokeWidth={2} />
+            </div>
+            <h2 className="font-display font-bold text-2xl mb-2">Parabéns! 🎉</h2>
+            <p className="text-gray-600 mb-6">
+              Você concluiu <strong>100%</strong> deste curso e seu <strong>certificado digital</strong> foi emitido.
+            </p>
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => navigate('/certificates')} className="gap-2">
+                <Award size={18} /> Ver meus certificados
+              </Button>
+              <Button variant="outline" onClick={() => setCertCelebration(false)}>Continuar no curso</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sticky Header */}
       <header className="border-b-2 border-black bg-white sticky top-0 z-40">
         <div className="max-w-[clamp(960px,80vw,1600px)] mx-auto px-4 h-16 flex items-center justify-between gap-4">

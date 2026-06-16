@@ -4,6 +4,7 @@ import { eq, and, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { progress, lessons, modules, courses } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
+import { issueCourseCertificateIfComplete, courseIdForLesson } from '../lib/courseCompletion.js';
 
 const markProgressSchema = z.object({
   lessonId: z.number().int().positive(),
@@ -154,7 +155,19 @@ export async function progressRoutes(app: FastifyInstance) {
         });
       }
 
-      return reply.send({ success: true, lessonId });
+      // Auto-emite o certificado se esta lição concluiu o curso (idempotente).
+      let certificateIssued = false;
+      let certificateId: number | null = null;
+      const courseId = await courseIdForLesson(lessonId);
+      if (courseId) {
+        const result = await issueCourseCertificateIfComplete(userId, courseId);
+        if (result) {
+          certificateId = result.certificate.id;
+          certificateIssued = !result.alreadyExisted;
+        }
+      }
+
+      return reply.send({ success: true, lessonId, certificateIssued, certificateId });
     } catch (error) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to update progress' });

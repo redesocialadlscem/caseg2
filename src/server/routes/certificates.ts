@@ -5,6 +5,7 @@ import { db } from '../db/index.js';
 import { certificates, courses, modules, lessons, progress, users } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { generateCourseCertificatePdf } from '../lib/certificatePdf.js';
+import { issueCourseCertificateIfComplete } from '../lib/courseCompletion.js';
 
 /** Código de verificação do certificado (mesmo formato do painel admin). */
 function certificateCode(id: number, issuedAt: Date | number | string): string {
@@ -70,62 +71,15 @@ export async function certificateRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Course not found' });
       }
 
-      // Verifica se já tem certificado emitido
-      const existingCert = await db
-        .select({ id: certificates.id })
-        .from(certificates)
-        .where(
-          and(
-            eq(certificates.userId, userId),
-            eq(certificates.courseId, courseId)
-          )
-        )
-        .get();
-
-      if (existingCert) {
-        return reply.status(409).send({ error: 'Certificate already issued for this course' });
+      // Emite (ou recupera) o certificado se o curso foi 100% concluído.
+      const result = await issueCourseCertificateIfComplete(userId, courseId);
+      if (!result) {
+        return reply.status(400).send({ error: 'Course not completed' });
       }
-
-      // Verifica se completou 100% das lições
-      const completionCheck = await db
-        .select({
-          totalLessons: sql<number>`COUNT(DISTINCT ${lessons.id})`,
-          completedLessons: sql<number>`COUNT(DISTINCT CASE WHEN ${progress.completed} = 1 THEN ${lessons.id} END)`,
-        })
-        .from(modules)
-        .innerJoin(lessons, eq(lessons.moduleId, modules.id))
-        .leftJoin(
-          progress,
-          and(
-            eq(progress.lessonId, lessons.id),
-            eq(progress.userId, userId)
-          )
-        )
-        .where(eq(modules.courseId, courseId))
-        .get();
-
-      const total = Number(completionCheck?.totalLessons ?? 0);
-      const completed = Number(completionCheck?.completedLessons ?? 0);
-
-      if (total === 0 || completed < total) {
-        return reply.status(400).send({
-          error: 'Course not completed',
-          details: { totalLessons: total, completedLessons: completed },
-        });
+      if (result.alreadyExisted) {
+        return reply.status(409).send({ error: 'Certificate already issued for this course', certificate: result.certificate });
       }
-
-      // Emite o certificado
-      const [newCert] = await db
-        .insert(certificates)
-        .values({
-          userId,
-          courseId,
-          issuedAt: new Date(),
-          pdfPath: '',
-        })
-        .returning();
-
-      return reply.status(201).send({ certificate: newCert });
+      return reply.status(201).send({ certificate: result.certificate });
     } catch (error) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to issue certificate' });
