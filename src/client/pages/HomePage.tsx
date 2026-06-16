@@ -1,9 +1,10 @@
 ﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Shield, Users, Award, 
+import {
+  Shield, Users, Award,
   BookOpen, CheckCircle2, Mail,
-  Globe, MessageSquare, Share2, Loader2, Search, Filter
+  Globe, MessageSquare, Share2, Loader2, Search, Filter,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Badge } from '../components/Badge';
@@ -29,6 +30,7 @@ interface FeaturedCourse {
 function HeroSection() {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [featuredCourses, setFeaturedCourses] = useState<FeaturedCourse[]>([]);
+  const [current, setCurrent] = useState(0);
 
   useEffect(() => {
     fetch('/api/courses/featured')
@@ -36,6 +38,18 @@ function HeroSection() {
       .then((data: FeaturedCourse[]) => setFeaturedCourses(data))
       .catch(() => {});
   }, []);
+
+  // Carrossel: avança sozinho a cada 5s (reinicia a contagem após navegação manual)
+  useEffect(() => {
+    if (featuredCourses.length <= 1) return;
+    const id = setInterval(() => {
+      setCurrent((c) => (c + 1) % featuredCourses.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [featuredCourses.length, current]);
+
+  const goCarousel = (dir: number) =>
+    setCurrent((c) => (c + dir + featuredCourses.length) % featuredCourses.length);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -147,27 +161,75 @@ function HeroSection() {
 
               <div className="space-y-3">
                 {featuredCourses.length > 0 ? (
-                  featuredCourses.slice(0, 2).map((course) => (
-                    <Link key={course.id} to={`/courses/${course.id}`} className="block rounded-xl bg-white/95 overflow-hidden hover:bg-white transition-colors">
-                      <div className="relative aspect-video bg-emerald-100 flex items-center justify-center overflow-hidden">
-                        {course.imageUrl ? (
-                          <img src={course.imageUrl} alt={course.title} className="w-full h-full object-cover" loading="lazy" />
-                        ) : (
-                          <Badge variant="brand">{course.category}</Badge>
+                  (() => {
+                    const course = featuredCourses[current] ?? featuredCourses[0];
+                    return (
+                      <div>
+                        {/* Carrossel: um card por vez com setas laterais */}
+                        <div className="relative">
+                          <Link
+                            key={course.id}
+                            to={`/courses/${course.id}`}
+                            className="block rounded-xl bg-white/95 overflow-hidden hover:bg-white transition-colors animate-in fade-in slide-in-from-right-3 duration-500"
+                          >
+                            <div className="relative aspect-video bg-emerald-100 flex items-center justify-center overflow-hidden">
+                              {course.imageUrl ? (
+                                <img src={course.imageUrl} alt={course.title} className="w-full h-full object-cover" loading="lazy" />
+                              ) : (
+                                <Badge variant="brand">{course.category}</Badge>
+                              )}
+                            </div>
+                            <div className="p-4">
+                              <h3 className="font-display font-bold text-base uppercase text-black mb-1 line-clamp-1">{course.title}</h3>
+                              <p className="text-xs uppercase tracking-wide text-gray-600 mb-2">{course.durationHours}h de conteúdo</p>
+                              <div className="flex items-center justify-between">
+                                <span className="font-display font-bold text-sm text-brand">
+                                  {course.price > 0 ? `R$ ${course.price.toFixed(2).replace('.', ',')}` : 'Grátis'}
+                                </span>
+                                <Button variant="primary" size="sm" className="text-xs">Matricule-se</Button>
+                              </div>
+                            </div>
+                          </Link>
+
+                          {featuredCourses.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                aria-label="Curso anterior"
+                                onClick={() => goCarousel(-1)}
+                                className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-9 w-9 flex items-center justify-center rounded-full bg-white/90 border-2 border-white text-black shadow-lg backdrop-blur hover:bg-white hover:scale-110 active:scale-95 transition-all"
+                              >
+                                <ChevronLeft size={18} strokeWidth={2.5} />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label="Próximo curso"
+                                onClick={() => goCarousel(1)}
+                                className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-10 h-9 w-9 flex items-center justify-center rounded-full bg-white/90 border-2 border-white text-black shadow-lg backdrop-blur hover:bg-white hover:scale-110 active:scale-95 transition-all"
+                              >
+                                <ChevronRight size={18} strokeWidth={2.5} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Indicadores (dots) */}
+                        {featuredCourses.length > 1 && (
+                          <div className="flex justify-center gap-1.5 mt-3">
+                            {featuredCourses.map((_, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                aria-label={`Ir ao destaque ${i + 1}`}
+                                onClick={() => setCurrent(i)}
+                                className={`h-1.5 rounded-full transition-all ${i === current ? 'w-5 bg-white' : 'w-1.5 bg-white/40 hover:bg-white/70'}`}
+                              />
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-display font-bold text-base uppercase text-black mb-1">{course.title}</h3>
-                        <p className="text-xs uppercase tracking-wide text-gray-600 mb-2">{course.durationHours}h de conteúdo</p>
-                        <div className="flex items-center justify-between">
-                          <span className="font-display font-bold text-sm text-brand">
-                            {course.price > 0 ? `R$ ${course.price.toFixed(2).replace('.', ',')}` : 'Grátis'}
-                          </span>
-                          <Button variant="primary" size="sm" className="text-xs">Matricule-se</Button>
-                        </div>
-                      </div>
-                    </Link>
-                  ))
+                    );
+                  })()
                 ) : (
                   <div className="rounded-xl bg-white/95 p-6 text-center">
                     <p className="font-body text-sm text-gray-500">Nenhum curso em destaque no momento</p>
