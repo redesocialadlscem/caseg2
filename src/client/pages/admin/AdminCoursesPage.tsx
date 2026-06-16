@@ -730,7 +730,7 @@ export function AdminCoursesPage() {
           />
 
           {/* Modal Content */}
-          <div className="relative w-full max-w-lg bg-white border-2 border-black rounded-xl shadow-brutal p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white border-2 border-black rounded-xl shadow-brutal p-6 sm:p-8 animate-in fade-in zoom-in-95 duration-200">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-display font-bold text-2xl">
                 {editingCourse ? 'Editar Curso' : 'Novo Curso'}
