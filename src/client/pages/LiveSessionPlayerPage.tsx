@@ -356,7 +356,7 @@ export function LiveSessionPlayerPage() {
 
   // ─── TELA: PLAYER ATIVO ───
   return (
-    <div className="h-screen bg-black flex flex-col overflow-hidden">
+    <div className="min-h-screen lg:h-screen bg-black flex flex-col lg:overflow-hidden">
       {/* Header Minimalista */}
       <header className="bg-white border-b-2 border-black px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3 min-w-0">
@@ -372,14 +372,14 @@ export function LiveSessionPlayerPage() {
       </header>
 
       {/* Conteúdo Principal: Grid Responsivo */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Área do Vídeo (~70%) */}
-        <main className="flex-1 bg-gray-900 relative min-h-0">
+      <div className="flex-1 flex flex-col lg:flex-row lg:overflow-hidden lg:min-h-0">
+        {/* Área do Vídeo: altura fixa no mobile, ~70% no desktop */}
+        <main className="relative bg-gray-900 w-full h-[58vh] min-h-[280px] shrink-0 lg:h-auto lg:flex-1 lg:min-h-0">
           <div ref={jitsiContainerRef} className="absolute inset-0 w-full h-full" />
         </main>
 
-        {/* Barra Lateral de Controles (~30%) */}
-        <aside className="w-full lg:w-80 xl:w-96 bg-white border-l-2 border-t-2 lg:border-t-0 border-black flex flex-col shrink-0 overflow-y-auto">
+        {/* Barra Lateral de Controles: abaixo do vídeo no mobile (página rola), ~30% no desktop */}
+        <aside className="w-full lg:w-80 xl:w-96 bg-white border-t-2 lg:border-t-0 lg:border-l-2 border-black flex flex-col shrink-0 lg:overflow-y-auto">
           {/* Info do Participante */}
           <div className="p-5 border-b-2 border-black">
             <div className="flex items-center gap-3">
