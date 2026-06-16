@@ -10,7 +10,7 @@ import { useAuthContext } from '../context/AuthContext';
 
 // JaaS App ID padrão (público) — usado como fallback quando o backend não
 // devolve um appId (credenciais do JaaS não configuradas).
-const DEFAULT_JAAS_APP_ID = 'vpaas-magic-cookie-71d242ffa38c4e99bcd9ead502e8355d';
+const DEFAULT_JAAS_APP_ID = 'vpaas-magic-cookie-dada9a23da52471e99e65ef21f014e8f';
 
 // Declaração de tipos para Jitsi Meet External API
 declare global {
