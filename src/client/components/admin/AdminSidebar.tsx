@@ -11,7 +11,6 @@ import {
   X,
   ShieldCheck,
   Video,
-  Newspaper,
   Zap
 } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -24,7 +23,6 @@ const navItems = [
   { label: 'Cursos', path: '/admin/courses', icon: BookOpen },
   { label: 'Usuários', path: '/admin/users', icon: Users },
   { label: 'Certificados', path: '/admin/certificates', icon: Award },
-  { label: 'Notícias', path: '/admin/news', icon: Newspaper },
   { label: 'Portal Corporativo', path: '/admin/live-sessions', icon: Video },
   { label: 'Banco de Interações', path: '/admin/interactions', icon: Zap },
   { label: 'Configurações', path: '/admin/settings', icon: Settings },
@@ -51,7 +49,7 @@ export function AdminSidebar() {
             'flex items-center gap-3 px-4 py-3 font-display font-bold text-sm uppercase tracking-wide border-2 transition-all',
             isActive
               ? 'bg-brand text-white border-black shadow-brutal-sm'
-              : 'bg-white text-black border-transparent hover:bg-gray-50 hover:border-black'
+              : 'text-gray-300 border-transparent hover:bg-gray-800 hover:text-white hover:border-gray-700'
           )
         )}
       >
@@ -66,7 +64,7 @@ export function AdminSidebar() {
       {/* Mobile Toggle */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 bg-white border-2 border-black p-2 shadow-brutal brutal-interactive"
+        className="lg:hidden fixed top-4 left-4 z-50 bg-white text-black border-2 border-black p-2 shadow-brutal brutal-interactive"
         aria-label="Toggle menu"
       >
         {mobileOpen ? <X size={24} /> : <Menu size={24} />}
@@ -84,13 +82,13 @@ export function AdminSidebar() {
       <aside
         className={twMerge(
           clsx(
-            'fixed lg:static inset-y-0 left-0 z-40 w-72 bg-white border-r-2 border-black flex flex-col transition-transform duration-300 ease-in-out',
+            'fixed lg:static inset-y-0 left-0 z-40 w-72 bg-gray-900 border-r-2 border-black flex flex-col transition-transform duration-300 ease-in-out',
             mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
           )
         )}
       >
         {/* Logo */}
-        <div className="p-6 border-b-2 border-black">
+        <div className="p-6 border-b-2 border-gray-700">
           <Link to="/" className="flex items-center gap-2 group">
             <img
               src={siteLogo}
@@ -108,16 +106,14 @@ export function AdminSidebar() {
         </nav>
 
         {/* Footer / Logout */}
-        <div className="p-4 border-t-2 border-black">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full justify-center gap-2"
+        <div className="p-4 border-t-2 border-gray-700">
+          <button 
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 font-display font-bold text-sm uppercase tracking-wide border-2 border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white hover:border-gray-600 rounded-xl transition-all"
             onClick={handleLogout}
           >
             <LogOut size={18} />
             Sair do Painel
-          </Button>
+          </button>
         </div>
       </aside>
     </>

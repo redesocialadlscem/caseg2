@@ -1,8 +1,8 @@
-﻿import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
+﻿import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
-  Shield, Users, Award, Clock, Layers, Menu, X, 
-  BookOpen, CheckCircle2, Mail, Phone, MapPin,
+  Shield, Users, Award, 
+  BookOpen, CheckCircle2, Mail,
   Globe, MessageSquare, Share2, Loader2, Search, Filter
 } from 'lucide-react';
 import { Button } from '../components/Button';
@@ -490,39 +490,49 @@ function StatsSection() {
   );
 }
 
-const faqItems = [
+const testimonials = [
   {
-    question: 'Preciso de experiência prévia?',
-    answer: 'Não. Os cursos são desenhados para iniciantes e profissionais em diferentes níveis, com conteúdo prático e didático.',
+    name: 'Carlos Mendes',
+    role: 'Técnico de Segurança — Usinas Corcovado',
+    quote: 'Completei a NR-35 e NR-10 pela CASEG em menos de uma semana. O conteúdo é direto ao ponto, sem enrolação. Já indiquei pra toda a equipe.',
+    rating: 5,
   },
   {
-    question: 'Recebo certificado?',
-    answer: 'Sim. Todos os cursos oferecem certificado digital ao concluir as atividades e avaliações necessárias.',
+    name: 'Fernanda Oliveira',
+    role: 'Engenheira de Produção — AgroPalma',
+    quote: 'A plataforma é muito fácil de usar. Consegui capacitar 40 colaboradores remotamente com certificado válido. Economia enorme em deslocamento.',
+    rating: 5,
   },
   {
-    question: 'Posso assistir pelo celular?',
-    answer: 'Pode. A plataforma é responsiva e permite assistir aulas no celular, tablet ou computador.',
-  },
-  {
-    question: 'Como faço matrícula?',
-    answer: 'Basta escolher o curso no catálogo e seguir até o carrinho. Estamos disponíveis para suporte caso precise de ajuda.',
+    name: 'Roberto Silva',
+    role: 'Gerente de RH — MetalForge Indústria',
+    quote: 'O suporte é excelente. Tivemos dúvida sobre validade do certificado e resolveram em minutos. Profissionalismo de verdade.',
+    rating: 5,
   },
 ];
 
-function FAQSection() {
+function TestimonialsSection() {
   return (
-    <section className="py-16 bg-emerald-50 border-b-2 border-black">
+    <section className="py-16 bg-white border-b-2 border-black">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <p className="text-sm uppercase tracking-[0.3em] text-brand font-bold">Tire suas dúvidas</p>
-          <h2 className="font-display font-bold text-3xl md:text-4xl mt-4">As principais dúvidas antes da matrícula</h2>
+          <p className="text-sm uppercase tracking-[0.3em] text-brand font-bold">Quem já estudou conosco</p>
+          <h2 className="font-display font-bold text-3xl md:text-4xl mt-4">O que nossos alunos dizem</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {faqItems.map((item) => (
-            <div key={item.question} className="rounded-xl border-2 border-black bg-white p-6 shadow-brutal">
-              <h3 className="font-display font-bold uppercase tracking-wide text-sm mb-3">{item.question}</h3>
-              <p className="font-body text-sm text-gray-700 leading-relaxed">{item.answer}</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          {testimonials.map((t) => (
+            <div key={t.name} className="rounded-xl border-2 border-black bg-white p-6 shadow-brutal flex flex-col">
+              <div className="flex gap-1 mb-4">
+                {Array.from({ length: t.rating }).map((_, i) => (
+                  <span key={i} className="text-brand text-lg">★</span>
+                ))}
+              </div>
+              <p className="font-body text-gray-700 leading-relaxed flex-1 mb-6">"{t.quote}"</p>
+              <div className="border-t-2 border-black pt-4">
+                <p className="font-display font-bold text-sm uppercase">{t.name}</p>
+                <p className="font-body text-xs text-gray-500 mt-1">{t.role}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -531,165 +541,24 @@ function FAQSection() {
   );
 }
 
-interface HomeNewsItem {
-  id: number;
-  title: string;
-  summary: string;
-  sourceUrl: string;
-  publishedAt: string | number;
-}
-
-function NewsSection() {
-  const [news, setNews] = useState<HomeNewsItem[]>([]);
-
-  useEffect(() => {
-    fetch('/api/news?page=1&limit=3')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (data?.news) setNews(data.news);
-      })
-      .catch(() => {
-        /* notícias são opcionais na home */
-      });
-  }, []);
-
-  // Sem notícias publicadas: não renderiza a seção (nada de conteúdo fake)
-  if (news.length === 0) return null;
-
-  const formatDate = (value: string | number) => {
-    const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
-    return date
-      .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
-      .toUpperCase();
-  };
-
+function ContactBannerSection() {
   return (
-    <section className="py-16 bg-white border-b-2 border-black">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <p className="text-sm uppercase tracking-[0.3em] text-brand font-bold">Notícias e atualizações</p>
-          <h2 className="font-display font-bold text-3xl md:text-4xl mt-4">Segurança do trabalho, NRs e prevenção</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {news.map((item) => {
-            const card = (
-              <>
-                <div className="mb-4 flex items-center justify-between gap-3">
-                  <span className="text-xs font-bold uppercase tracking-wide text-gray-800">Notícia</span>
-                  <span className="text-xs uppercase tracking-wide text-gray-600">{formatDate(item.publishedAt)}</span>
-                </div>
-                <h3 className="font-display font-bold text-xl mb-3 leading-tight">{item.title}</h3>
-                <p className="font-body text-sm text-gray-700 leading-relaxed line-clamp-4">{item.summary}</p>
-              </>
-            );
-            return item.sourceUrl ? (
-              <a
-                key={item.id}
-                href={item.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-xl border-2 border-black bg-emerald-50 p-6 shadow-brutal brutal-interactive"
-              >
-                {card}
-              </a>
-            ) : (
-              <div key={item.id} className="rounded-xl border-2 border-black bg-emerald-50 p-6 shadow-brutal">
-                {card}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="mt-10 text-center">
-          <Link
-            to="/news"
-            className="inline-flex items-center gap-2 rounded-xl border-2 border-black bg-white px-6 py-3 font-display font-bold uppercase tracking-wide text-black shadow-brutal brutal-interactive"
-          >
-            Ver todas as notícias
-          </Link>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const CONTACT_EMAIL = 'contato@casegprotege.com.br';
-
-function ContactSection() {
-  function handleContactSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const form = new FormData(e.currentTarget);
-    const name = String(form.get('name') || '');
-    const email = String(form.get('email') || '');
-    const message = String(form.get('message') || '');
-    const subject = encodeURIComponent(`Contato pelo site — ${name}`);
-    const body = encodeURIComponent(`Nome: ${name}\nE-mail: ${email}\n\n${message}`);
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
-  }
-
-  return (
-    <section id="contato" className="py-16 bg-emerald-50 border-b-2 border-black">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <p className="text-sm uppercase tracking-[0.3em] text-brand font-bold">Fale conosco</p>
-          <h2 className="font-display font-bold text-3xl md:text-4xl mt-4">Pronto para tirar suas dúvidas ou solicitar uma proposta?</h2>
-        </div>
-
-        <div className="grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="grid gap-6">
-            <div className="rounded-xl border-2 border-black bg-white p-8 shadow-brutal">
-              <div className="mb-6 flex items-center gap-4 text-brand">
-                <Mail size={28} />
-                <div>
-                  <p className="font-display font-bold text-xl">E-mail</p>
-                  <p className="font-body text-sm text-gray-600">contato@casegprotege.com.br</p>
-                </div>
-              </div>
-              <div className="mb-6 flex items-center gap-4 text-brand">
-                <Phone size={28} />
-                <div>
-                  <p className="font-display font-bold text-xl">Telefone</p>
-                  <p className="font-body text-sm text-gray-600">(11) 99999-9999</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-brand">
-                <MapPin size={28} />
-                <div>
-                  <p className="font-display font-bold text-xl">Endereço</p>
-                  <p className="font-body text-sm text-gray-600">São Paulo, SP - Brasil</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="rounded-xl border-2 border-black bg-black p-8 text-white shadow-brutal">
-              <p className="font-display font-bold text-2xl">Atendimento rápido</p>
-              <p className="mt-4 font-body text-sm leading-relaxed text-gray-300">
-                Nosso time está disponível para responder dúvidas sobre cursos, propostas para empresas e parcerias.
-              </p>
-            </div>
-          </div>
-
-          <div className="rounded-xl border-2 border-black bg-white p-8 shadow-brutal">
-            <form className="space-y-5" onSubmit={handleContactSubmit}>
-              <div>
-                <label htmlFor="contact-name" className="font-display font-bold text-sm uppercase tracking-wide block mb-2">Nome</label>
-                <input id="contact-name" name="name" type="text" required className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="Seu nome completo" />
-              </div>
-              <div>
-                <label htmlFor="contact-email" className="font-display font-bold text-sm uppercase tracking-wide block mb-2">E-mail</label>
-                <input id="contact-email" name="email" type="email" required className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="seu@email.com" />
-              </div>
-              <div>
-                <label htmlFor="contact-message" className="font-display font-bold text-sm uppercase tracking-wide block mb-2">Mensagem</label>
-                <textarea id="contact-message" name="message" rows={4} required className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="Como podemos ajudar?" />
-              </div>
-              <Button type="submit" variant="primary" size="lg" className="w-full justify-center">
-                Enviar Mensagem
-              </Button>
-            </form>
-          </div>
-        </div>
+    <section className="py-16 bg-emerald-50 border-b-2 border-black">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <p className="text-sm uppercase tracking-[0.3em] text-brand font-bold">Fale conosco</p>
+        <h2 className="font-display font-bold text-3xl md:text-4xl mt-4 mb-6">
+          Preciso de ajuda ou quer uma proposta?
+        </h2>
+        <p className="font-body text-gray-700 max-w-2xl mx-auto mb-8">
+          Nossa equipe está pronta para responder dúvidas sobre cursos, propostas para empresas e parcerias.
+        </p>
+        <Link
+          to="/contato"
+          className="inline-flex items-center gap-2 rounded-xl border-2 border-black bg-white px-8 py-4 font-display font-bold uppercase tracking-wide text-black shadow-brutal brutal-interactive"
+        >
+          <Mail size={18} />
+          Acessar página de contato
+        </Link>
       </div>
     </section>
   );
@@ -705,9 +574,8 @@ export function HomePage() {
         <FeaturesSection />
         <AboutSection />
         <StatsSection />
-        <FAQSection />
-        <NewsSection />
-        <ContactSection />
+        <TestimonialsSection />
+        <ContactBannerSection />
       </main>
       <footer className="bg-gray-900 text-white border-t-4 border-brand">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -723,7 +591,7 @@ export function HomePage() {
               <ul className="space-y-2 font-body text-sm text-gray-400">
                 <li><Link to="/courses" className="hover:text-brand transition-colors">Cursos</Link></li>
                 <li><a href="#sobre" className="hover:text-brand transition-colors">Sobre Nós</a></li>
-                <li><a href="#contato" className="hover:text-brand transition-colors">Contato</a></li>
+                <li><Link to="/contato" className="hover:text-brand transition-colors">Contato</Link></li>
               </ul>
             </div>
             <div>
@@ -744,7 +612,7 @@ export function HomePage() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-gray-800 text-center font-body text-sm text-gray-500">
-            © 2024 CASEG Protege. Todos os direitos reservados.
+            © 2025 CASEG Protege. Todos os direitos reservados.
           </div>
         </div>
       </footer>

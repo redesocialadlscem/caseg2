@@ -23,10 +23,9 @@ const AdminUsersPage = lazy(() => import('./pages/admin/AdminUsersPage').then(m 
 const AdminCertificatesPage = lazy(() => import('./pages/admin/AdminCertificatesPage').then(m => ({ default: m.AdminCertificatesPage })));
 const AdminSettingsPage = lazy(() => import('./pages/admin/AdminSettingsPage').then(m => ({ default: m.AdminSettingsPage })));
 const AdminLiveSessionsPage = lazy(() => import('./pages/admin/AdminLiveSessionsPage').then(m => ({ default: m.AdminLiveSessionsPage })));
-const AdminNewsPage = lazy(() => import('./pages/admin/AdminNewsPage').then(m => ({ default: m.AdminNewsPage })));
 const AdminLessonEditorPage = lazy(() => import('./pages/admin/AdminLessonEditorPage').then(m => ({ default: m.AdminLessonEditorPage })));
 const AdminInteractionsPage = lazy(() => import('./pages/admin/AdminInteractionsPage').then(m => ({ default: m.AdminInteractionsPage })));
-const NewsPage = lazy(() => import('./pages/NewsPage').then(m => ({ default: m.NewsPage })));
+const ContactPage = lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
 const PaymentResultPage = lazy(() => import('./pages/PaymentResultPage').then(m => ({ default: m.PaymentResultPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
 const ForumDashboardPage = lazy(() => import('./pages/ForumDashboardPage').then(m => ({ default: m.ForumDashboardPage })));
@@ -53,7 +52,7 @@ export function App() {
         <Routes>
           {/* Public Landing Page */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/news" element={<NewsPage />} />
+          <Route path="/contato" element={<ContactPage />} />
           
           {/* Auth Routes */}
           <Route path="/login" element={<LoginPage />} />
@@ -141,16 +140,6 @@ export function App() {
             element={
               <ProtectedRoute>
                 <AdminLessonEditorPage />
-              </ProtectedRoute>
-            }
-          />
-
-          {/* Admin News */}
-          <Route
-            path="/admin/news"
-            element={
-              <ProtectedRoute>
-                <AdminNewsPage />
               </ProtectedRoute>
             }
           />
