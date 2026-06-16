@@ -27,13 +27,13 @@ export const ProgressBar = memo(function ProgressBar({
     <div className={twMerge(clsx('w-full', className))}>
       {showLabel && (
         <div className="flex justify-between mb-1.5">
-          <span className="font-body text-xs font-bold uppercase text-gray-500">Progresso</span>
-          <span className="font-display font-bold text-xs">{Math.round(clampedValue)}%</span>
+          <span className="font-body text-xs font-bold uppercase text-black/70">Progresso</span>
+          <span className="font-display font-bold text-xs text-black">{Math.round(clampedValue)}%</span>
         </div>
       )}
-      <div 
+      <div
         className={twMerge(clsx(
-          'w-full bg-gray-100 border-2 border-black overflow-hidden',
+          'w-full bg-brand-light/15 border-2 border-black overflow-hidden',
           heights[size]
         ))}
         role="progressbar"
@@ -41,7 +41,7 @@ export const ProgressBar = memo(function ProgressBar({
         aria-valuemin={0}
         aria-valuemax={100}
       >
-        <div 
+        <div
           className="h-full bg-brand transition-all duration-500 ease-out"
           style={{ width: `${clampedValue}%` }}
         />

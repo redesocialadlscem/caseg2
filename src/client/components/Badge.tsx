@@ -10,7 +10,7 @@ export const Badge = memo(function Badge({ className, variant = 'neutral', child
   const variants = {
     neutral: 'bg-white text-black shadow-brutal-sm',
     brand: 'bg-brand text-white shadow-brutal-sm',
-    warning: 'bg-yellow-300 text-black shadow-brutal-sm',
+    warning: 'bg-brand-light text-black shadow-brutal-sm',
   };
 
   return (

@@ -20,7 +20,7 @@ export function Button({
     primary: "bg-brand text-white shadow-brutal hover:bg-brand-light",
     secondary: "bg-black text-white shadow-brutal hover:bg-gray-800",
     outline: "bg-white text-black shadow-brutal hover:bg-gray-50",
-    danger: "bg-red-600 text-white shadow-brutal hover:bg-red-700",
+    danger: "bg-danger text-white shadow-brutal hover:bg-red-700",
     dark: "bg-black text-white shadow-brutal hover:bg-gray-800",
   };
 
