@@ -4,7 +4,7 @@ import { Mail, Phone, MapPin, MessageSquare } from 'lucide-react';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 
-const CONTACT_EMAIL = 'contato@casegprotege.com.br';
+const CONTACT_EMAIL = 'casegprotege@hotmail.com';
 const WHATSAPP_NUMBER = '5513997942803';
 
 function handleContactSubmit(e: FormEvent<HTMLFormElement>) {
@@ -86,7 +86,8 @@ export function ContactPage() {
                     <div>
                       <p className="font-display font-bold text-xl">Endereço</p>
                       <p className="font-body text-sm text-gray-600">
-                        Cajati, SP — Brasil
+                        Rua Ceará, 31 — Centro<br />
+                        Cajati, SP — CEP 11950-000
                       </p>
                     </div>
                   </div>

@@ -27,6 +27,8 @@ const AdminLessonEditorPage = lazy(() => import('./pages/admin/AdminLessonEditor
 const AdminInteractionsPage = lazy(() => import('./pages/admin/AdminInteractionsPage').then(m => ({ default: m.AdminInteractionsPage })));
 const AdminLiveAnalyticsPage = lazy(() => import('./pages/admin/AdminLiveAnalyticsPage').then(m => ({ default: m.AdminLiveAnalyticsPage })));
 const ContactPage = lazy(() => import('./pages/ContactPage').then(m => ({ default: m.ContactPage })));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage').then(m => ({ default: m.PrivacyPolicyPage })));
+const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
 const PaymentResultPage = lazy(() => import('./pages/PaymentResultPage').then(m => ({ default: m.PaymentResultPage })));
 const CartPage = lazy(() => import('./pages/CartPage').then(m => ({ default: m.CartPage })));
 const ForumDashboardPage = lazy(() => import('./pages/ForumDashboardPage').then(m => ({ default: m.ForumDashboardPage })));
@@ -54,6 +56,8 @@ export function App() {
           {/* Public Landing Page */}
           <Route path="/" element={<HomePage />} />
           <Route path="/contato" element={<ContactPage />} />
+          <Route path="/privacidade" element={<PrivacyPolicyPage />} />
+          <Route path="/termos" element={<TermsPage />} />
           
           {/* Auth Routes */}
           <Route path="/login" element={<LoginPage />} />

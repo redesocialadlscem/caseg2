@@ -12,6 +12,7 @@ import { Card } from '../components/Card';
 import { Input } from '../components/Input';
 import { CourseCard } from '../components/CourseCard';
 import { PublicHeader } from '../components/PublicLayout';
+import { COMPANY } from '../lib/company';
 
 /* -------------------------------------------------------------------------------------------------
  * LOCAL COMPONENTS (Specific to Landing Page)
@@ -654,6 +655,8 @@ export function HomePage() {
                 <li><Link to="/courses" className="hover:text-brand transition-colors">Cursos</Link></li>
                 <li><a href="#sobre" className="hover:text-brand transition-colors">Sobre Nós</a></li>
                 <li><Link to="/contato" className="hover:text-brand transition-colors">Contato</Link></li>
+                <li><Link to="/privacidade" className="hover:text-brand transition-colors">Política de Privacidade</Link></li>
+                <li><Link to="/termos" className="hover:text-brand transition-colors">Termos de Uso</Link></li>
               </ul>
             </div>
             <div>
@@ -673,8 +676,9 @@ export function HomePage() {
               </div>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t border-gray-800 text-center font-body text-sm text-gray-500">
-            © 2025 CASEG Protege. Todos os direitos reservados.
+          <div className="mt-12 pt-8 border-t border-gray-800 text-center font-body text-sm text-gray-500 space-y-1">
+            <p>{COMPANY.nomeFantasia} · CNPJ {COMPANY.cnpj}</p>
+            <p>© 2025 {COMPANY.marca}. Todos os direitos reservados.</p>
           </div>
         </div>
       </footer>
