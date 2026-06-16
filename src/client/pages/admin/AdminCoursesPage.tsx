@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   BookOpen,
   Plus,
   Pencil,
   Trash2,
   ChevronRight,
+  ChevronDown,
   ArrowRight,
   X,
   Loader2,
@@ -13,6 +14,9 @@ import {
   CheckCircle2,
   FolderOpen,
   Layers,
+  Video,
+  FileText,
+  ClipboardList,
 } from 'lucide-react';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -39,6 +43,14 @@ interface Module {
   title: string;
   order: number;
   lessonCount: number;
+}
+
+interface Lesson {
+  id: number;
+  title: string;
+  content: string;
+  videoUrl: string;
+  order: number;
 }
 
 interface CourseFormData {
@@ -79,6 +91,17 @@ export function AdminCoursesPage() {
   const [modulesLoading, setModulesLoading] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [addingModule, setAddingModule] = useState(false);
+
+  // Lessons (conteúdo) state
+  const navigate = useNavigate();
+  const [expandedModuleId, setExpandedModuleId] = useState<number | null>(null);
+  const [moduleLessons, setModuleLessons] = useState<Lesson[]>([]);
+  const [lessonsLoading, setLessonsLoading] = useState(false);
+  const [lessonModalOpen, setLessonModalOpen] = useState(false);
+  const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+  const [lessonModuleId, setLessonModuleId] = useState<number | null>(null);
+  const [lessonForm, setLessonForm] = useState({ title: '', videoUrl: '', content: '' });
+  const [savingLesson, setSavingLesson] = useState(false);
 
   // ─── Fetch Courses ───────────────────────────────────────────────────────
   const fetchCourses = useCallback(async () => {
@@ -248,10 +271,94 @@ export function AdminCoursesPage() {
       await apiFetch(`/api/admin/modules/${moduleId}`, accessToken, { method: 'DELETE' });
       setSuccessMsg('Módulo deletado!');
       setModules((prev) => prev.filter((m) => m.id !== moduleId));
+      if (expandedModuleId === moduleId) { setExpandedModuleId(null); setModuleLessons([]); }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Falha ao deletar módulo',
       );
+    }
+  };
+
+  // ─── Lições (conteúdo) ─────────────────────────────────────────────────────
+  const reloadModules = async (courseId: number) => {
+    try {
+      const res = await apiFetch(`/api/admin/courses/${courseId}/modules`, accessToken);
+      setModules(await res.json());
+    } catch { /* ignore */ }
+  };
+
+  const loadLessons = async (moduleId: number) => {
+    const res = await apiFetch(`/api/admin/modules/${moduleId}/lessons`, accessToken);
+    setModuleLessons(await res.json());
+  };
+
+  const toggleLessons = async (moduleId: number) => {
+    if (expandedModuleId === moduleId) {
+      setExpandedModuleId(null);
+      setModuleLessons([]);
+      return;
+    }
+    setExpandedModuleId(moduleId);
+    setModuleLessons([]);
+    setLessonsLoading(true);
+    try {
+      await loadLessons(moduleId);
+    } catch {
+      setError('Falha ao carregar lições');
+    } finally {
+      setLessonsLoading(false);
+    }
+  };
+
+  const openCreateLesson = (moduleId: number) => {
+    setEditingLesson(null);
+    setLessonModuleId(moduleId);
+    setLessonForm({ title: '', videoUrl: '', content: '' });
+    setLessonModalOpen(true);
+  };
+
+  const openEditLesson = (lesson: Lesson, moduleId: number) => {
+    setEditingLesson(lesson);
+    setLessonModuleId(moduleId);
+    setLessonForm({ title: lesson.title, videoUrl: lesson.videoUrl || '', content: lesson.content || '' });
+    setLessonModalOpen(true);
+  };
+
+  const saveLesson = async () => {
+    if (!lessonForm.title.trim() || lessonModuleId == null) return;
+    setSavingLesson(true);
+    try {
+      const body = JSON.stringify({
+        title: lessonForm.title.trim(),
+        videoUrl: lessonForm.videoUrl.trim(),
+        content: lessonForm.content,
+      });
+      if (editingLesson) {
+        await apiFetch(`/api/admin/lessons/${editingLesson.id}`, accessToken, { method: 'PUT', body });
+        setSuccessMsg('Lição atualizada!');
+      } else {
+        await apiFetch(`/api/admin/modules/${lessonModuleId}/lessons`, accessToken, { method: 'POST', body });
+        setSuccessMsg('Lição adicionada!');
+      }
+      setLessonModalOpen(false);
+      await loadLessons(lessonModuleId);
+      if (expandedCourseId) await reloadModules(expandedCourseId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao salvar lição');
+    } finally {
+      setSavingLesson(false);
+    }
+  };
+
+  const deleteLesson = async (lesson: Lesson, moduleId: number) => {
+    if (!window.confirm(`Deletar a lição "${lesson.title}"?`)) return;
+    try {
+      await apiFetch(`/api/admin/lessons/${lesson.id}`, accessToken, { method: 'DELETE' });
+      setSuccessMsg('Lição deletada!');
+      setModuleLessons((prev) => prev.filter((l) => l.id !== lesson.id));
+      if (expandedCourseId) await reloadModules(expandedCourseId);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Falha ao deletar lição');
     }
   };
 
@@ -459,34 +566,80 @@ export function AdminCoursesPage() {
                           {modules.length > 0 ? (
                             <div className="space-y-2 mb-4">
                               {modules.map((mod) => (
-                                <div
-                                  key={mod.id}
-                                  className="flex items-center justify-between bg-white border-2 border-black rounded-xl px-4 py-3 shadow-brutal-sm"
-                                >
-                                  <div className="flex items-center gap-3 min-w-0">
-                                    <span className="shrink-0 w-7 h-7 flex items-center justify-center bg-brand text-white text-xs font-bold border-2 border-black rounded-md">
-                                      {mod.order + 1}
-                                    </span>
-                                    <span className="font-bold text-sm truncate">
-                                      {mod.title}
-                                    </span>
-                                    <span className="text-xs text-gray-500 whitespace-nowrap">
-                                      ({mod.lessonCount}{' '}
-                                      {mod.lessonCount === 1
-                                        ? 'lição'
-                                        : 'lições'}
-                                      )
-                                    </span>
+                                <div key={mod.id} className="bg-white border-2 border-black rounded-xl shadow-brutal-sm overflow-hidden">
+                                  {/* Cabeçalho do módulo (clique expande as lições) */}
+                                  <div className="flex items-center justify-between px-4 py-3">
+                                    <button
+                                      onClick={() => toggleLessons(mod.id)}
+                                      className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                                    >
+                                      {expandedModuleId === mod.id
+                                        ? <ChevronDown size={16} className="shrink-0 text-brand" strokeWidth={2.5} />
+                                        : <ChevronRight size={16} className="shrink-0 text-gray-400" strokeWidth={2.5} />}
+                                      <span className="shrink-0 w-7 h-7 flex items-center justify-center bg-brand text-white text-xs font-bold border-2 border-black rounded-md">
+                                        {mod.order + 1}
+                                      </span>
+                                      <span className="font-bold text-sm truncate">{mod.title}</span>
+                                      <span className="text-xs text-gray-500 whitespace-nowrap">
+                                        ({mod.lessonCount} {mod.lessonCount === 1 ? 'lição' : 'lições'})
+                                      </span>
+                                    </button>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                      <button
+                                        onClick={() => openCreateLesson(mod.id)}
+                                        className="inline-flex items-center gap-1 rounded-lg border-2 border-black bg-brand px-2 py-1 text-[11px] font-bold uppercase text-white shadow-brutal-sm hover:bg-brand-light"
+                                        title="Adicionar lição"
+                                      >
+                                        <Plus size={12} strokeWidth={3} /> Lição
+                                      </button>
+                                      <button
+                                        onClick={() => deleteModule(mod.id, mod.title)}
+                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Deletar Módulo"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
                                   </div>
-                                  <button
-                                    onClick={() =>
-                                      deleteModule(mod.id, mod.title)
-                                    }
-                                    className="shrink-0 p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                    title="Deletar Módulo"
-                                  >
-                                    <Trash2 size={16} />
-                                  </button>
+
+                                  {/* Lições do módulo */}
+                                  {expandedModuleId === mod.id && (
+                                    <div className="border-t-2 border-dashed border-gray-200 bg-gray-50/60 px-4 py-3">
+                                      {lessonsLoading ? (
+                                        <div className="flex items-center gap-2 py-3 text-sm text-gray-500">
+                                          <Loader2 className="animate-spin text-brand" size={16} /> Carregando lições…
+                                        </div>
+                                      ) : moduleLessons.length === 0 ? (
+                                        <p className="text-sm text-gray-500 italic py-1">Nenhuma lição neste módulo. Clique em "Lição" para adicionar conteúdo.</p>
+                                      ) : (
+                                        <ul className="space-y-2">
+                                          {moduleLessons.map((lesson, i) => (
+                                            <li key={lesson.id} className="flex items-center justify-between gap-2 bg-white border-2 border-black rounded-lg px-3 py-2">
+                                              <div className="flex items-center gap-2 min-w-0">
+                                                <span className="shrink-0 text-xs font-mono font-bold text-gray-400">{i + 1}.</span>
+                                                <span className="font-medium text-sm truncate">{lesson.title}</span>
+                                                <span className="flex items-center gap-1.5 shrink-0">
+                                                  {lesson.videoUrl && <Video size={13} className="text-brand" />}
+                                                  {lesson.content && <FileText size={13} className="text-gray-400" />}
+                                                </span>
+                                              </div>
+                                              <div className="flex items-center gap-1 shrink-0">
+                                                <button onClick={() => navigate(`/admin/lessons/${lesson.id}/edit`)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-emerald-50 rounded-lg transition-colors" title="Provas e atividades">
+                                                  <ClipboardList size={15} />
+                                                </button>
+                                                <button onClick={() => openEditLesson(lesson, mod.id)} className="p-1.5 text-gray-400 hover:text-brand hover:bg-emerald-50 rounded-lg transition-colors" title="Editar conteúdo">
+                                                  <Pencil size={15} />
+                                                </button>
+                                                <button onClick={() => deleteLesson(lesson, mod.id)} className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Deletar lição">
+                                                  <Trash2 size={15} />
+                                                </button>
+                                              </div>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               ))}
                             </div>
@@ -684,6 +837,64 @@ export function AdminCoursesPage() {
                 ) : (
                   'Criar Curso'
                 )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: criar/editar conteúdo da lição */}
+      {lessonModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setLessonModalOpen(false)} />
+          <div className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white border-2 border-black rounded-xl shadow-brutal p-6 sm:p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="font-display font-bold text-2xl">{editingLesson ? 'Editar Lição' : 'Nova Lição'}</h2>
+              <button onClick={() => setLessonModalOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><X size={20} /></button>
+            </div>
+
+            <div className="space-y-4">
+              <Input
+                label="Título da Lição"
+                placeholder="Ex: Introdução à NR-35"
+                value={lessonForm.title}
+                onChange={(e) => setLessonForm((f) => ({ ...f, title: e.target.value }))}
+                autoFocus
+              />
+              <div className="flex flex-col gap-1.5">
+                <label className="font-display font-bold text-xs uppercase tracking-wide mb-1 block">URL do Vídeo (opcional)</label>
+                <Input
+                  placeholder="https://www.youtube.com/embed/... ou link do vídeo"
+                  value={lessonForm.videoUrl}
+                  onChange={(e) => setLessonForm((f) => ({ ...f, videoUrl: e.target.value }))}
+                />
+                <span className="text-xs text-gray-500">Cole o link do vídeo (YouTube, Vimeo, etc.). Deixe vazio se a lição for só texto.</span>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="lesson-content" className="font-display font-bold text-xs uppercase tracking-wide mb-1 block">Conteúdo / Texto da Aula</label>
+                <textarea
+                  id="lesson-content"
+                  rows={8}
+                  placeholder="Escreva o conteúdo da lição (texto, instruções, resumo...)."
+                  value={lessonForm.content}
+                  onChange={(e) => setLessonForm((f) => ({ ...f, content: e.target.value }))}
+                  className="w-full bg-white border-2 border-black rounded-xl px-4 py-3 font-body text-base placeholder:text-gray-400 focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow resize-y"
+                />
+              </div>
+              {editingLesson && (
+                <button
+                  onClick={() => { setLessonModalOpen(false); navigate(`/admin/lessons/${editingLesson.id}/edit`); }}
+                  className="inline-flex items-center gap-2 text-sm font-bold text-brand hover:underline"
+                >
+                  <ClipboardList size={15} /> Configurar provas e atividades desta lição →
+                </button>
+              )}
+            </div>
+
+            <div className="flex gap-3 mt-8">
+              <Button variant="outline" onClick={() => setLessonModalOpen(false)} className="flex-1" disabled={savingLesson}>Cancelar</Button>
+              <Button onClick={saveLesson} disabled={savingLesson || !lessonForm.title.trim()} className="flex-1 gap-2">
+                {savingLesson ? (<><Loader2 className="animate-spin" size={18} /> Salvando…</>) : editingLesson ? 'Atualizar Lição' : 'Adicionar Lição'}
               </Button>
             </div>
           </div>

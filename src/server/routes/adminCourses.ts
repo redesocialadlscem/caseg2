@@ -38,6 +38,24 @@ const createModuleSchema = z.object({
   order: z.number().int().min(0).optional(),
 });
 
+const lessonIdParamSchema = z.object({
+  lessonId: z.coerce.number().int().positive(),
+});
+
+const createLessonSchema = z.object({
+  title: z.string().min(1),
+  content: z.string().optional().default(''),
+  videoUrl: z.string().optional().default(''),
+  order: z.number().int().min(0).optional(),
+});
+
+const updateLessonSchema = z.object({
+  title: z.string().min(1).optional(),
+  content: z.string().optional(),
+  videoUrl: z.string().optional(),
+  order: z.number().int().min(0).optional(),
+});
+
 // ─── Admin guard helper ──────────────────────────────────────────────────────
 function isAdmin(request: any): boolean {
   return request.user?.role === 'admin';
@@ -275,6 +293,99 @@ export async function adminCourseRoutes(app: FastifyInstance) {
     } catch (error) {
       app.log.error(error);
       return reply.status(500).send({ error: 'Failed to delete module' });
+    }
+  });
+
+  // ─── Lições (conteúdo) ───────────────────────────────────────────────────────
+
+  // GET /api/admin/modules/:moduleId/lessons — lista lições de um módulo
+  app.get('/api/admin/modules/:moduleId/lessons', async (request, reply) => {
+    const params = moduleIdParamSchema.safeParse(request.params);
+    if (!params.success) return reply.status(400).send({ error: 'Invalid module id' });
+    try {
+      const rows = await db.select({
+        id: lessons.id,
+        title: lessons.title,
+        content: lessons.content,
+        videoUrl: lessons.videoUrl,
+        order: lessons.orderIndex,
+      })
+        .from(lessons)
+        .where(eq(lessons.moduleId, params.data.moduleId))
+        .orderBy(asc(lessons.orderIndex));
+      return reply.send(rows);
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to fetch lessons' });
+    }
+  });
+
+  // POST /api/admin/modules/:moduleId/lessons — cria lição
+  app.post('/api/admin/modules/:moduleId/lessons', async (request, reply) => {
+    const params = moduleIdParamSchema.safeParse(request.params);
+    if (!params.success) return reply.status(400).send({ error: 'Invalid module id' });
+    const parsed = createLessonSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: 'Invalid body', details: parsed.error.flatten() });
+    try {
+      const mod = await db.select({ id: modules.id }).from(modules).where(eq(modules.id, params.data.moduleId)).get();
+      if (!mod) return reply.status(404).send({ error: 'Module not found' });
+
+      let orderIndex = parsed.data.order;
+      if (orderIndex === undefined) {
+        const maxResult = await db.select({ maxOrder: sql<number>`COALESCE(MAX(${lessons.orderIndex}), -1)` })
+          .from(lessons).where(eq(lessons.moduleId, params.data.moduleId));
+        orderIndex = Number(maxResult[0]?.maxOrder ?? -1) + 1;
+      }
+
+      const result = await db.insert(lessons).values({
+        moduleId: params.data.moduleId,
+        title: parsed.data.title,
+        content: parsed.data.content || '',
+        videoUrl: parsed.data.videoUrl || '',
+        orderIndex,
+      }).returning();
+      return reply.status(201).send(result[0]);
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to create lesson' });
+    }
+  });
+
+  // PUT /api/admin/lessons/:lessonId — atualiza conteúdo da lição
+  app.put('/api/admin/lessons/:lessonId', async (request, reply) => {
+    const params = lessonIdParamSchema.safeParse(request.params);
+    if (!params.success) return reply.status(400).send({ error: 'Invalid lesson id' });
+    const parsed = updateLessonSchema.safeParse(request.body);
+    if (!parsed.success) return reply.status(400).send({ error: 'Invalid body', details: parsed.error.flatten() });
+
+    const set: Record<string, unknown> = {};
+    if (parsed.data.title !== undefined) set.title = parsed.data.title;
+    if (parsed.data.content !== undefined) set.content = parsed.data.content;
+    if (parsed.data.videoUrl !== undefined) set.videoUrl = parsed.data.videoUrl;
+    if (parsed.data.order !== undefined) set.orderIndex = parsed.data.order;
+    if (Object.keys(set).length === 0) return reply.status(400).send({ error: 'At least one field must be provided' });
+
+    try {
+      const updated = await db.update(lessons).set(set).where(eq(lessons.id, params.data.lessonId)).returning();
+      if (updated.length === 0) return reply.status(404).send({ error: 'Lesson not found' });
+      return reply.send(updated[0]);
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to update lesson' });
+    }
+  });
+
+  // DELETE /api/admin/lessons/:lessonId — deleta lição
+  app.delete('/api/admin/lessons/:lessonId', async (request, reply) => {
+    const params = lessonIdParamSchema.safeParse(request.params);
+    if (!params.success) return reply.status(400).send({ error: 'Invalid lesson id' });
+    try {
+      const deleted = await db.delete(lessons).where(eq(lessons.id, params.data.lessonId)).returning();
+      if (deleted.length === 0) return reply.status(404).send({ error: 'Lesson not found' });
+      return reply.status(204).send();
+    } catch (error) {
+      app.log.error(error);
+      return reply.status(500).send({ error: 'Failed to delete lesson' });
     }
   });
 }
