@@ -13,6 +13,8 @@ const createCourseSchema = z.object({
   imageUrl: z.string().url().optional().or(z.literal('')),
   isFeatured: z.boolean().optional(),
   price: z.number().min(0).max(1_000_000).optional(), // 0 = gratuito
+  durationHours: z.number().min(0).max(10_000).optional(), // carga horária (NR)
+  updatedAt: z.coerce.date().optional(), // data de revisão do conteúdo
 });
 
 const updateCourseSchema = z.object({
@@ -23,6 +25,8 @@ const updateCourseSchema = z.object({
   isFeatured: z.boolean().optional(),
   isActive: z.boolean().optional(),
   price: z.number().min(0).max(1_000_000).optional(),
+  durationHours: z.number().min(0).max(10_000).optional(),
+  updatedAt: z.coerce.date().optional(),
 });
 
 const idParamSchema = z.object({
@@ -61,6 +65,25 @@ function isAdmin(request: any): boolean {
   return request.user?.role === 'admin';
 }
 
+/** Marca o curso como atualizado agora (conformidade: alteração de conteúdo). */
+async function touchCourse(courseId: number) {
+  await db.update(courses).set({ updatedAt: new Date() }).where(eq(courses.id, courseId));
+}
+
+/** Descobre o curso a partir de um módulo. */
+async function courseIdOfModule(moduleId: number): Promise<number | null> {
+  const m = await db.select({ courseId: modules.courseId }).from(modules).where(eq(modules.id, moduleId)).get();
+  return m?.courseId ?? null;
+}
+
+/** Descobre o curso a partir de uma lição. */
+async function courseIdOfLesson(lessonId: number): Promise<number | null> {
+  const row = await db.select({ courseId: modules.courseId })
+    .from(lessons).innerJoin(modules, eq(modules.id, lessons.moduleId))
+    .where(eq(lessons.id, lessonId)).get();
+  return row?.courseId ?? null;
+}
+
 // ─── Routes ──────────────────────────────────────────────────────────────────
 export async function adminCourseRoutes(app: FastifyInstance) {
   // All routes require auth + admin role
@@ -84,7 +107,9 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         isFeatured: courses.isFeatured,
         isActive: courses.isActive,
         price: courses.price,
+        durationHours: courses.durationHours,
         createdAt: courses.createdAt,
+        updatedAt: courses.updatedAt,
       })
         .from(courses)
         .orderBy(desc(courses.createdAt));
@@ -256,6 +281,7 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         })
         .returning();
 
+      await touchCourse(params.data.id);
       return reply.status(201).send(result[0]);
     } catch (error) {
       app.log.error(error);
@@ -281,6 +307,8 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Module not found' });
       }
 
+      const courseId = await courseIdOfModule(params.data.moduleId);
+
       // Delete associated lessons first (manual cascade)
       await db.delete(lessons)
         .where(eq(lessons.moduleId, params.data.moduleId));
@@ -289,6 +317,7 @@ export async function adminCourseRoutes(app: FastifyInstance) {
       await db.delete(modules)
         .where(eq(modules.id, params.data.moduleId));
 
+      if (courseId) await touchCourse(courseId);
       return reply.status(204).send();
     } catch (error) {
       app.log.error(error);
@@ -344,6 +373,8 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         videoUrl: parsed.data.videoUrl || '',
         orderIndex,
       }).returning();
+      const courseId = await courseIdOfModule(params.data.moduleId);
+      if (courseId) await touchCourse(courseId);
       return reply.status(201).send(result[0]);
     } catch (error) {
       app.log.error(error);
@@ -368,6 +399,8 @@ export async function adminCourseRoutes(app: FastifyInstance) {
     try {
       const updated = await db.update(lessons).set(set).where(eq(lessons.id, params.data.lessonId)).returning();
       if (updated.length === 0) return reply.status(404).send({ error: 'Lesson not found' });
+      const courseId = await courseIdOfLesson(params.data.lessonId);
+      if (courseId) await touchCourse(courseId);
       return reply.send(updated[0]);
     } catch (error) {
       app.log.error(error);
@@ -380,8 +413,10 @@ export async function adminCourseRoutes(app: FastifyInstance) {
     const params = lessonIdParamSchema.safeParse(request.params);
     if (!params.success) return reply.status(400).send({ error: 'Invalid lesson id' });
     try {
+      const courseId = await courseIdOfLesson(params.data.lessonId);
       const deleted = await db.delete(lessons).where(eq(lessons.id, params.data.lessonId)).returning();
       if (deleted.length === 0) return reply.status(404).send({ error: 'Lesson not found' });
+      if (courseId) await touchCourse(courseId);
       return reply.status(204).send();
     } catch (error) {
       app.log.error(error);

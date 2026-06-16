@@ -23,6 +23,10 @@ async function migrate() {
   await addColumnIfMissing('courses', "image_url TEXT NOT NULL DEFAULT ''");
   await addColumnIfMissing('courses', "is_featured INTEGER NOT NULL DEFAULT 0");
   await addColumnIfMissing('courses', "price REAL NOT NULL DEFAULT 0");
+  // SQLite não aceita DEFAULT não-constante em ALTER ADD COLUMN NOT NULL:
+  // adiciona nullable e faz backfill com created_at (ou agora).
+  await addColumnIfMissing('courses', "updated_at INTEGER");
+  await client.execute("UPDATE courses SET updated_at = COALESCE(updated_at, created_at, unixepoch())");
   await addColumnIfMissing('users', "is_active INTEGER NOT NULL DEFAULT 1");
 
   await client.execute(`

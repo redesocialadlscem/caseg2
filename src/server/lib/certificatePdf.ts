@@ -1,5 +1,8 @@
 import PDFDocument from 'pdfkit';
 
+/** Emissor legal (conformidade — deve constar no certificado). */
+const ISSUER = 'CASEG Protege — ALEX RICARDO INACIO - ME · CNPJ 35.908.301/0001-00';
+
 interface CertificateRenderOptions {
   recipientName: string;
   /** Texto do corpo (já formatado). */
@@ -103,17 +106,16 @@ function renderCertificate(opts: CertificateRenderOptions): Promise<Buffer> {
       .text('✓', badgeX, badgeY + 20, { align: 'center', width: badgeSize });
 
     // ── Rodapé ──
-    doc.rect(30, H - 80, W - 60, 50).fill('#F5F5F5');
-    doc.rect(30, H - 80, W - 60, 50).lineWidth(2).strokeColor(BLACK).stroke();
-    const footerText = opts.code
-      ? `Certificado nº ${opts.code} — gerado digitalmente pela plataforma CASEG Protege.\n`
-        + 'Verifique a autenticidade no portal corporativo.'
-      : 'Este certificado foi gerado digitalmente pela plataforma CASEG Protege.\n'
-        + 'Verifique a autenticidade no portal corporativo.';
-    doc.fontSize(9)
+    doc.rect(30, H - 92, W - 60, 62).fill('#F5F5F5');
+    doc.rect(30, H - 92, W - 60, 62).lineWidth(2).strokeColor(BLACK).stroke();
+    const idLine = opts.code
+      ? `Certificado nº ${opts.code} — gerado digitalmente. Verifique a autenticidade no portal corporativo.`
+      : 'Gerado digitalmente. Verifique a autenticidade no portal corporativo.';
+    const footerText = `Emitido por ${ISSUER}.\n${idLine}`;
+    doc.fontSize(8.5)
       .font('Helvetica')
       .fillColor('#666666')
-      .text(footerText, 50, H - 72, { align: 'center', width: W - 100 });
+      .text(footerText, 50, H - 84, { align: 'center', width: W - 100 });
 
     doc.end();
   });

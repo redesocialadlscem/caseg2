@@ -35,7 +35,9 @@ interface Course {
   isFeatured: boolean;
   isActive: boolean;
   price: number;
+  durationHours: number;
   createdAt: string;
+  updatedAt: string;
 }
 
 interface Module {
@@ -60,6 +62,15 @@ interface CourseFormData {
   imageUrl: string;
   isFeatured: boolean;
   price: number;
+  durationHours: number;
+  updatedAt: string; // yyyy-mm-dd
+}
+
+/** Converte um timestamp/data ISO em yyyy-mm-dd para o input date. */
+function toDateInput(value?: string | number | null): string {
+  if (!value) return new Date().toISOString().slice(0, 10);
+  const d = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
+  return isNaN(d.getTime()) ? new Date().toISOString().slice(0, 10) : d.toISOString().slice(0, 10);
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -81,6 +92,8 @@ export function AdminCoursesPage() {
     imageUrl: '',
     isFeatured: false,
     price: 0,
+    durationHours: 0,
+    updatedAt: toDateInput(),
   });
   const [formErrors, setFormErrors] = useState<Partial<CourseFormData>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -133,7 +146,7 @@ export function AdminCoursesPage() {
   // ─── Course CRUD ─────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingCourse(null);
-    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false, price: 0 });
+    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false, price: 0, durationHours: 0, updatedAt: toDateInput() });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -147,6 +160,8 @@ export function AdminCoursesPage() {
       imageUrl: course.imageUrl || '',
       isFeatured: course.isFeatured || false,
       price: course.price ?? 0,
+      durationHours: course.durationHours ?? 0,
+      updatedAt: toDateInput(course.updatedAt),
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -495,11 +510,10 @@ export function AdminCoursesPage() {
                               : 'Gratuito'}
                           </span>
                           <span>•</span>
-                          <span>
-                            Criado em{' '}
-                            {new Date(course.createdAt).toLocaleDateString(
-                              'pt-BR',
-                            )}
+                          <span>{course.durationHours > 0 ? `${course.durationHours}h` : 'sem carga horária'}</span>
+                          <span>•</span>
+                          <span className="font-bold text-gray-700">
+                            Atualizado em {new Date(course.updatedAt).toLocaleDateString('pt-BR')}
                           </span>
                         </div>
                         <p className="text-sm text-gray-600 line-clamp-2">
@@ -743,6 +757,35 @@ export function AdminCoursesPage() {
                   setFormData((prev) => ({ ...prev, imageUrl: e.target.value }))
                 }
               />
+
+              {/* Conformidade NR: carga horária + última atualização do conteúdo */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="durationHours" className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">Carga horária (h)</label>
+                  <input
+                    id="durationHours"
+                    type="number"
+                    min={0}
+                    step="0.5"
+                    inputMode="decimal"
+                    placeholder="Ex: 8"
+                    value={Number.isFinite(formData.durationHours) ? formData.durationHours : 0}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, durationHours: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                    className="w-full bg-white border-2 border-black rounded-xl px-4 py-3 font-body text-base focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow"
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label htmlFor="updatedAt" className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">Última atualização</label>
+                  <input
+                    id="updatedAt"
+                    type="date"
+                    value={formData.updatedAt}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, updatedAt: e.target.value }))}
+                    className="w-full bg-white border-2 border-black rounded-xl px-4 py-3 font-body text-base focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 -mt-2">Data de revisão do conteúdo (conformidade com a versão vigente da NR). Atualiza sozinho ao editar módulos/lições.</p>
 
               <div className="flex flex-col gap-1.5 w-full">
                 <label htmlFor="price" className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">

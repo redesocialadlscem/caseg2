@@ -28,6 +28,11 @@ export const courses = sqliteTable('courses', {
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
+  // Data da última atualização/revisão do conteúdo (conformidade NR — manter o
+  // treinamento alinhado à versão vigente da norma).
+  updatedAt: integer('updated_at', { mode: 'timestamp' })
+    .notNull()
+    .default(sql`(unixepoch())`),
 });
 
 // ─── Modules ─────────────────────────────────────────────────────────────────

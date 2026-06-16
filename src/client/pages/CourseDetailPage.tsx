@@ -20,6 +20,7 @@ interface Course {
   imageUrl: string;
   isActive: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 interface SyllabusLesson {
@@ -429,6 +430,12 @@ export function CourseDetailPage() {
                   <dt className="text-xs font-bold uppercase text-gray-500 mb-1">Idioma</dt>
                   <dd className="font-bold text-gray-900">Português (BR)</dd>
                 </div>
+                {course.updatedAt && (
+                  <div>
+                    <dt className="text-xs font-bold uppercase text-gray-500 mb-1">Última atualização</dt>
+                    <dd className="font-bold text-gray-900">{new Date(course.updatedAt).toLocaleDateString('pt-BR')}</dd>
+                  </div>
+                )}
               </dl>
             </Card>
 
