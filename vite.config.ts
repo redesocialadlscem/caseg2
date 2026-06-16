@@ -18,6 +18,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5173,
+    // Falha alto se a 5173 já estiver ocupada, em vez de migrar para 5174 em
+    // silêncio (o túnel Cloudflare aponta fixo para a 5173). Evita "split-brain"
+    // de instâncias duplicadas servindo código obsoleto.
+    strictPort: true,
     allowedHosts: true,
     proxy: {
       '/api': {
