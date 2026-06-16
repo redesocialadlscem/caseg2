@@ -14,8 +14,7 @@ const navLinks = [
   { label: 'Início', href: '/' },
   { label: 'Cursos', href: '/#cursos' },
   { label: 'Sobre', href: '#sobre' },
-  { label: 'Notícias', href: '/news' },
-  { label: 'Contato', href: '#contato' },
+  { label: 'Contato', href: '/contato' },
 ];
 
 export function PublicHeader() {
