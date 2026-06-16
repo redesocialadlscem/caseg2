@@ -31,4 +31,19 @@ export default defineConfig({
       },
     },
   },
+  // Produção: `vite preview` serve o dist/client buildado na 5173 e proxia /api
+  // para o backend (o client usa caminhos /api relativos). Usado pelo systemd
+  // (serviço caseg-front).
+  preview: {
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    allowedHosts: true,
+    proxy: {
+      '/api': {
+        target: process.env.VITE_API_PROXY || 'http://localhost:3050',
+        changeOrigin: true,
+      },
+    },
+  },
 });
