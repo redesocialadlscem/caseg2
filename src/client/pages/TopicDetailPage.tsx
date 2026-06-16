@@ -112,16 +112,16 @@ export function TopicDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-emerald-600 border-t-transparent" />
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand border-t-transparent" />
       </div>
     );
   }
 
   if (error || !topic) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 px-6">
+        <div className="rounded-xl border-2 border-black bg-white p-6 text-center font-bold text-red-600 shadow-brutal">
           {error || 'Tópico não encontrado'}
         </div>
       </div>
@@ -140,88 +140,84 @@ export function TopicDetailPage() {
   const rootReplies = replies.filter(r => r.parentReplyId === null);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gray-50">
       {/* Admin Moderation Bar */}
       {isAdmin && (
-        <div className="sticky top-0 z-20 border-b border-indigo-200 bg-indigo-50 px-6 py-2">
+        <div className="sticky top-0 z-20 border-b-2 border-black bg-black px-6 py-2 text-white">
           <div className="mx-auto flex max-w-4xl items-center justify-between">
-            <span className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+            <span className="text-xs font-bold uppercase tracking-wide text-amber-300">
               Modo Moderador Ativo
             </span>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handlePinToggle}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
-                  topic.isPinned
-                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
-                    : 'bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
-                }`}
-              >
-                <Pin className="h-3.5 w-3.5" />
-                {topic.isPinned ? 'Desafixar' : 'Fixar Tópico'}
-              </button>
-            </div>
+            <button
+              onClick={handlePinToggle}
+              className={`flex items-center gap-1.5 rounded-lg border-2 border-black px-3 py-1.5 text-xs font-bold uppercase tracking-wide shadow-brutal-sm transition-colors ${
+                topic.isPinned
+                  ? 'bg-amber-300 text-black hover:bg-amber-200'
+                  : 'bg-white text-black hover:bg-gray-100'
+              }`}
+            >
+              <Pin className="h-3.5 w-3.5" strokeWidth={2.5} />
+              {topic.isPinned ? 'Desafixar' : 'Fixar Tópico'}
+            </button>
           </div>
         </div>
       )}
 
       {/* Navigation */}
-      <div className="border-b border-slate-200 bg-white/80 backdrop-blur-md">
+      <div className="border-b-2 border-black bg-white">
         <div className="mx-auto flex max-w-4xl items-center gap-3 px-6 py-4">
           <Link
             to={`/forum/${courseId}`}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors"
+            className="flex h-10 w-10 items-center justify-center rounded-xl border-2 border-black bg-white text-black shadow-brutal-sm brutal-interactive"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4" strokeWidth={2.5} />
           </Link>
           <div className="min-w-0">
-            <p className="text-xs text-slate-500">Fórum do Curso</p>
-            <h1 className="font-display text-lg font-bold text-slate-900 truncate">{topic.title}</h1>
+            <p className="text-xs font-bold uppercase tracking-wide text-gray-500">Fórum do Curso</p>
+            <h1 className="truncate font-display text-lg font-bold uppercase text-black">{topic.title}</h1>
           </div>
         </div>
       </div>
 
       <div className="mx-auto max-w-4xl px-6 py-8">
         {/* Original Post */}
-        <article className="mb-8 rounded-xl border border-emerald-100 bg-emerald-50/30 p-6">
+        <article className="mb-8 rounded-xl border-2 border-black bg-emerald-50 p-6 shadow-brutal">
           <div className="mb-4 flex items-center gap-3">
-            <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white ${
-              topic.authorRole === 'admin' ? 'bg-indigo-600' : 'bg-emerald-600'
+            <div className={`flex h-10 w-10 items-center justify-center rounded-lg border-2 border-black text-sm font-bold text-white shadow-brutal-sm ${
+              topic.authorRole === 'admin' ? 'bg-black' : 'bg-brand'
             }`}>
               {topic.authorName.charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <span className={`font-semibold ${topic.authorRole === 'admin' ? 'text-indigo-700' : 'text-slate-900'}`}>
+                <span className="font-display font-bold uppercase text-black">
                   {topic.authorName}
                 </span>
                 {topic.authorRole === 'admin' && (
-                  <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 uppercase">
+                  <span className="rounded-md border-2 border-black bg-brand px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-brutal-sm">
                     Admin
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-500">{date}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-gray-500">{date}</p>
             </div>
           </div>
 
-          <p className="text-slate-800 leading-relaxed whitespace-pre-wrap">{topic.content}</p>
+          <p className="font-body leading-relaxed text-gray-800 whitespace-pre-wrap">{topic.content}</p>
 
-          <div className="mt-4 flex items-center gap-4 border-t border-emerald-100 pt-4">
+          <div className="mt-4 flex items-center gap-4 border-t-2 border-black/10 pt-4">
             <button
               onClick={handleLikeTopic}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm transition-colors ${
-                liked
-                  ? 'bg-rose-50 font-semibold text-rose-600'
-                  : 'text-slate-500 hover:bg-slate-100 hover:text-rose-500'
+              className={`flex items-center gap-1.5 rounded-lg border-2 border-black px-3 py-1.5 text-sm font-bold uppercase tracking-wide shadow-brutal-sm transition-colors ${
+                liked ? 'bg-red-600 text-white' : 'bg-white text-black hover:bg-gray-50'
               }`}
             >
-              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
+              <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} strokeWidth={2.5} />
               <span>{likes} curtidas</span>
             </button>
             {topic.isLocked && (
-              <span className="flex items-center gap-1 text-xs text-amber-600">
-                <Lock className="h-3.5 w-3.5" />
+              <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-red-600">
+                <Lock className="h-3.5 w-3.5" strokeWidth={2.5} />
                 Tópico trancado
               </span>
             )}
@@ -230,10 +226,10 @@ export function TopicDetailPage() {
 
         {/* Replies */}
         <div className="mb-8">
-          <h2 className="mb-4 font-display text-base font-bold text-slate-900">
+          <h2 className="mb-4 font-display text-base font-bold uppercase tracking-tight text-black">
             Respostas ({replies.length})
           </h2>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y-2 divide-black/10 rounded-xl border-2 border-black bg-white px-4 shadow-brutal">
             {rootReplies.map(reply => (
               <ThreadReply
                 key={reply.id}
@@ -243,33 +239,33 @@ export function TopicDetailPage() {
                 onReplyAdded={loadData}
               />
             ))}
+            {rootReplies.length === 0 && (
+              <p className="py-8 text-center font-body text-sm text-gray-400">
+                Nenhuma resposta ainda. Seja o primeiro a responder!
+              </p>
+            )}
           </div>
-          {rootReplies.length === 0 && (
-            <p className="py-8 text-center text-sm text-slate-400">
-              Nenhuma resposta ainda. Seja o primeiro a responder!
-            </p>
-          )}
         </div>
 
         {/* Reply Form */}
         {!topic.isLocked && (
-          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-            <h3 className="mb-3 text-sm font-semibold text-slate-900">Sua Resposta</h3>
+          <div className="rounded-xl border-2 border-black bg-white p-5 shadow-brutal">
+            <h3 className="mb-3 font-display text-sm font-bold uppercase text-black">Sua Resposta</h3>
             <textarea
               value={replyContent}
               onChange={e => setReplyContent(e.target.value)}
               placeholder="Escreva sua resposta..."
               rows={3}
-              className="mb-3 w-full resize-none rounded-lg border border-slate-200 px-4 py-2.5 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="mb-3 w-full resize-none rounded-xl border-2 border-black px-4 py-3 text-sm focus:outline-none focus:ring-4 focus:ring-brand/30"
               maxLength={5000}
             />
             <div className="flex justify-end">
               <button
                 onClick={handleSubmitReply}
                 disabled={!replyContent.trim() || submitting}
-                className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                className="flex items-center gap-2 rounded-xl border-2 border-black bg-brand px-5 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-brutal-sm transition-colors hover:bg-brand-light disabled:opacity-50"
               >
-                <Send className="h-4 w-4" />
+                <Send className="h-4 w-4" strokeWidth={2.5} />
                 {submitting ? 'Enviando...' : 'Publicar Resposta'}
               </button>
             </div>

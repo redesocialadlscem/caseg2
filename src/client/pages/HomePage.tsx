@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from 'react';
+﻿import { useState, useEffect, useRef, useCallback, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   Shield, Users, Award, Clock, Layers, Menu, X, 
@@ -490,24 +490,6 @@ function StatsSection() {
   );
 }
 
-const testimonials = [
-  {
-    quote: 'Os cursos transformaram minha carreira. Consegui minha certificação NR-10 e já estou aplicando todo conhecimento no meu trabalho.',
-    name: 'Carlos Silva',
-    role: 'Técnico de Segurança',
-  },
-  {
-    quote: 'Conteúdo muito bem estruturado e atualizado. Os instrutores são excelentes e o suporte é incrível. Recomendo para todos da área.',
-    name: 'Ana Rodrigues',
-    role: 'Engenheira de Segurança',
-  },
-  {
-    quote: 'Plataforma muito intuitiva. Consegui fazer os cursos pelo celular nos intervalos do trabalho. Certificado reconhecido em todo Brasil.',
-    name: 'Pedro Santos',
-    role: 'Operador Industrial',
-  },
-];
-
 const faqItems = [
   {
     question: 'Preciso de experiência prévia?',
@@ -526,52 +508,6 @@ const faqItems = [
     answer: 'Basta escolher o curso no catálogo e seguir até o carrinho. Estamos disponíveis para suporte caso precise de ajuda.',
   },
 ];
-
-const newsList = [
-  {
-    title: 'Nova Atualização da NR 18',
-    category: 'Normas',
-    date: '15 JAN 2024',
-    description: 'Mudanças significativas nas normas de segurança na construção civil entram em vigor em 2024.',
-  },
-  {
-    title: 'SIPAT 2024: Guia Completo',
-    category: 'Eventos',
-    date: '10 JAN 2024',
-    description: 'Tudo que você precisa saber para organizar uma Semana Interna de Prevenção de Acidentes de Trabalho.',
-  },
-  {
-    title: 'Novos EPIs com Tecnologia IoT',
-    category: 'Tecnologia',
-    date: '05 JAN 2024',
-    description: 'Conheça os equipamentos de proteção inteligentes que monitoram a saúde do trabalhador em tempo real.',
-  },
-];
-
-function TestimonialsSection() {
-  return (
-    <section className="py-16 bg-white border-b-2 border-black">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
-          <p className="text-sm uppercase tracking-[0.3em] text-brand font-bold">Quem entrou, aprovou</p>
-          <h2 className="font-display font-bold text-3xl md:text-4xl mt-4">Resultados reais de quem escolheu evoluir com a CASEG Protege.</h2>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {testimonials.map((item) => (
-            <div key={item.name} className="rounded-xl border-2 border-black bg-emerald-50 p-8 shadow-brutal">
-              <p className="font-body text-base leading-relaxed text-gray-800">"{item.quote}"</p>
-              <div className="mt-6 border-t-2 border-black pt-5">
-                <p className="font-display font-bold uppercase tracking-wide">{item.name}</p>
-                <p className="font-body text-sm text-gray-600">{item.role}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
 
 function FAQSection() {
   return (
@@ -595,7 +531,38 @@ function FAQSection() {
   );
 }
 
+interface HomeNewsItem {
+  id: number;
+  title: string;
+  summary: string;
+  sourceUrl: string;
+  publishedAt: string | number;
+}
+
 function NewsSection() {
+  const [news, setNews] = useState<HomeNewsItem[]>([]);
+
+  useEffect(() => {
+    fetch('/api/news?page=1&limit=3')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.news) setNews(data.news);
+      })
+      .catch(() => {
+        /* notícias são opcionais na home */
+      });
+  }, []);
+
+  // Sem notícias publicadas: não renderiza a seção (nada de conteúdo fake)
+  if (news.length === 0) return null;
+
+  const formatDate = (value: string | number) => {
+    const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
+    return date
+      .toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+      .toUpperCase();
+  };
+
   return (
     <section className="py-16 bg-white border-b-2 border-black">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -605,23 +572,62 @@ function NewsSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {newsList.map((item) => (
-            <div key={item.title} className="rounded-xl border-2 border-black bg-emerald-50 p-6 shadow-brutal">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <span className="text-xs font-bold uppercase tracking-wide text-gray-800">{item.category}</span>
-                <span className="text-xs uppercase tracking-wide text-gray-600">{item.date}</span>
+          {news.map((item) => {
+            const card = (
+              <>
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <span className="text-xs font-bold uppercase tracking-wide text-gray-800">Notícia</span>
+                  <span className="text-xs uppercase tracking-wide text-gray-600">{formatDate(item.publishedAt)}</span>
+                </div>
+                <h3 className="font-display font-bold text-xl mb-3 leading-tight">{item.title}</h3>
+                <p className="font-body text-sm text-gray-700 leading-relaxed line-clamp-4">{item.summary}</p>
+              </>
+            );
+            return item.sourceUrl ? (
+              <a
+                key={item.id}
+                href={item.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-xl border-2 border-black bg-emerald-50 p-6 shadow-brutal brutal-interactive"
+              >
+                {card}
+              </a>
+            ) : (
+              <div key={item.id} className="rounded-xl border-2 border-black bg-emerald-50 p-6 shadow-brutal">
+                {card}
               </div>
-              <h3 className="font-display font-bold text-xl mb-3 leading-tight">{item.title}</h3>
-              <p className="font-body text-sm text-gray-700 leading-relaxed">{item.description}</p>
-            </div>
-          ))}
+            );
+          })}
+        </div>
+
+        <div className="mt-10 text-center">
+          <Link
+            to="/news"
+            className="inline-flex items-center gap-2 rounded-xl border-2 border-black bg-white px-6 py-3 font-display font-bold uppercase tracking-wide text-black shadow-brutal brutal-interactive"
+          >
+            Ver todas as notícias
+          </Link>
         </div>
       </div>
     </section>
   );
 }
 
+const CONTACT_EMAIL = 'contato@casegprotege.com.br';
+
 function ContactSection() {
+  function handleContactSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = new FormData(e.currentTarget);
+    const name = String(form.get('name') || '');
+    const email = String(form.get('email') || '');
+    const message = String(form.get('message') || '');
+    const subject = encodeURIComponent(`Contato pelo site — ${name}`);
+    const body = encodeURIComponent(`Nome: ${name}\nE-mail: ${email}\n\n${message}`);
+    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${subject}&body=${body}`;
+  }
+
   return (
     <section id="contato" className="py-16 bg-emerald-50 border-b-2 border-black">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -665,20 +671,20 @@ function ContactSection() {
           </div>
 
           <div className="rounded-xl border-2 border-black bg-white p-8 shadow-brutal">
-            <form className="space-y-5">
+            <form className="space-y-5" onSubmit={handleContactSubmit}>
               <div>
                 <label htmlFor="contact-name" className="font-display font-bold text-sm uppercase tracking-wide block mb-2">Nome</label>
-                <input id="contact-name" type="text" className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="Seu nome completo" />
+                <input id="contact-name" name="name" type="text" required className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="Seu nome completo" />
               </div>
               <div>
                 <label htmlFor="contact-email" className="font-display font-bold text-sm uppercase tracking-wide block mb-2">E-mail</label>
-                <input id="contact-email" type="email" className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="seu@email.com" />
+                <input id="contact-email" name="email" type="email" required className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="seu@email.com" />
               </div>
               <div>
                 <label htmlFor="contact-message" className="font-display font-bold text-sm uppercase tracking-wide block mb-2">Mensagem</label>
-                <textarea id="contact-message" rows={4} className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="Como podemos ajudar?" />
+                <textarea id="contact-message" name="message" rows={4} required className="w-full rounded-xl border-2 border-black bg-white px-4 py-3 font-body focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/30" placeholder="Como podemos ajudar?" />
               </div>
-              <Button variant="primary" size="lg" className="w-full justify-center">
+              <Button type="submit" variant="primary" size="lg" className="w-full justify-center">
                 Enviar Mensagem
               </Button>
             </form>
@@ -699,7 +705,6 @@ export function HomePage() {
         <FeaturesSection />
         <AboutSection />
         <StatsSection />
-        <TestimonialsSection />
         <FAQSection />
         <NewsSection />
         <ContactSection />

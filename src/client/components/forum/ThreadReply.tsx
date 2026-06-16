@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, MessageSquare, CornerDownRight } from 'lucide-react';
+import { Heart, CornerDownRight } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { apiFetch } from '../../lib/api';
 
@@ -24,7 +24,7 @@ interface ThreadReplyProps {
 }
 
 export function ThreadReply({ reply, allReplies, topicId, depth = 0, onReplyAdded }: ThreadReplyProps) {
-  const { accessToken, user } = useAuth();
+  const { accessToken } = useAuth();
   const [liked, setLiked] = useState(reply.userLiked);
   const [likes, setLikes] = useState(reply.likeCount);
   const [showReplyForm, setShowReplyForm] = useState(false);
@@ -78,47 +78,47 @@ export function ThreadReply({ reply, allReplies, topicId, depth = 0, onReplyAdde
   const isAdmin = reply.authorRole === 'admin';
 
   return (
-    <div className={`${effectiveDepth > 0 ? 'ml-6 border-l-2 border-slate-200 pl-4' : ''}`}>
+    <div className={`${effectiveDepth > 0 ? 'ml-5 border-l-2 border-black pl-4' : ''}`}>
       <article className="py-4">
         <div className="flex items-start gap-3">
-          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${
-            isAdmin ? 'bg-indigo-600' : 'bg-emerald-600'
+          <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border-2 border-black text-sm font-bold text-white shadow-brutal-sm ${
+            isAdmin ? 'bg-black' : 'bg-brand'
           }`}>
             {reply.authorName.charAt(0).toUpperCase()}
           </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`text-sm font-semibold ${isAdmin ? 'text-indigo-700' : 'text-slate-900'}`}>
+              <span className="font-display text-sm font-bold uppercase text-black">
                 {reply.authorName}
               </span>
               {isAdmin && (
-                <span className="rounded bg-indigo-100 px-1.5 py-0.5 text-[10px] font-bold text-indigo-700 uppercase">
+                <span className="rounded-md border-2 border-black bg-brand px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-brutal-sm">
                   Admin
                 </span>
               )}
-              <span className="text-xs text-slate-400">{date}</span>
+              <span className="text-xs font-medium uppercase tracking-wide text-gray-400">{date}</span>
             </div>
 
-            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">{reply.content}</p>
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{reply.content}</p>
 
             <div className="mt-2 flex items-center gap-4">
               <button
                 onClick={handleLike}
-                className={`flex items-center gap-1 text-xs transition-colors ${
-                  liked ? 'text-rose-500 font-semibold' : 'text-slate-500 hover:text-rose-500'
+                className={`flex items-center gap-1 text-xs font-bold uppercase tracking-wide transition-colors ${
+                  liked ? 'text-red-600' : 'text-gray-500 hover:text-red-600'
                 }`}
               >
-                <Heart className={`h-3.5 w-3.5 ${liked ? 'fill-current' : ''}`} />
+                <Heart className={`h-3.5 w-3.5 ${liked ? 'fill-current' : ''}`} strokeWidth={2.5} />
                 <span>{likes}</span>
               </button>
 
               {depth < maxDepth && (
                 <button
                   onClick={() => setShowReplyForm(!showReplyForm)}
-                  className="flex items-center gap-1 text-xs text-slate-500 hover:text-emerald-600 transition-colors"
+                  className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-gray-500 transition-colors hover:text-brand"
                 >
-                  <CornerDownRight className="h-3.5 w-3.5" />
+                  <CornerDownRight className="h-3.5 w-3.5" strokeWidth={2.5} />
                   <span>Responder</span>
                 </button>
               )}
@@ -131,13 +131,13 @@ export function ThreadReply({ reply, allReplies, topicId, depth = 0, onReplyAdde
                   value={replyContent}
                   onChange={e => setReplyContent(e.target.value)}
                   placeholder={`Respondendo a ${reply.authorName}...`}
-                  className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="flex-1 rounded-xl border-2 border-black bg-white px-3 py-2 text-sm focus:outline-none focus:ring-4 focus:ring-brand/30"
                   onKeyDown={e => e.key === 'Enter' && handleSubmitReply()}
                 />
                 <button
                   onClick={handleSubmitReply}
                   disabled={!replyContent.trim() || submitting}
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors"
+                  className="rounded-xl border-2 border-black bg-brand px-4 py-2 text-sm font-bold uppercase tracking-wide text-white shadow-brutal-sm transition-colors hover:bg-brand-light disabled:opacity-50"
                 >
                   {submitting ? '...' : 'Enviar'}
                 </button>
