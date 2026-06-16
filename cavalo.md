@@ -1,5 +1,2 @@
-Pronto, Turnner! 👑 Usuário admin criado com sucesso!
-🔐 Seus dados de acesso
-• Email: turnercavalo@admin.com
-• Senha: admin123
-• Role: admin ✅
+thomasnrs@hotmail.com 'maconha123' 'Thomas Navarro'
+lucasrodrigo1922@hotmail.com 'cajati2014' 'Lucas Carvalho'
