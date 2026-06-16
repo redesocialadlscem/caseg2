@@ -177,7 +177,7 @@ export function LiveSessionPlayerPage() {
           SHOW_JITSI_WATERMARK: false,
           SHOW_WATERMARK_FOR_GUESTS: false,
           DISABLE_DOMINANT_SPEAKER_INDICATOR: false,
-          TOOLBAR_BUTTONS: ['microphone', 'camera', 'hangup', 'chat', 'raisehand'],
+          TOOLBAR_BUTTONS: ['microphone', 'camera', 'desktop', 'hangup', 'chat', 'raisehand', 'tileview', 'settings', 'fullscreen'],
         },
       });
 
