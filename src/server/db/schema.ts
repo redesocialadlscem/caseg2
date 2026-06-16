@@ -157,6 +157,10 @@ export const liveSessions = sqliteTable('live_sessions', {
   durationMinutes: integer('duration_minutes').notNull().default(60),
   status: text('status', { enum: ['scheduled', 'live', 'completed', 'cancelled'] }).notNull().default('scheduled'),
   jitsiRoom: text('jitsi_room').notNull().default(''),
+  // Regras configuráveis de certificação (0 = regra desativada)
+  certMinAttendancePct: integer('cert_min_attendance_pct').notNull().default(0),
+  certMinAttentionPct: integer('cert_min_attention_pct').notNull().default(0),
+  certMinResponsePct: integer('cert_min_response_pct').notNull().default(0),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),
@@ -175,6 +179,9 @@ export const liveSessionParticipants = sqliteTable('live_session_participants', 
     .default(sql`(unixepoch())`),
   completedAt: integer('completed_at', { mode: 'timestamp' }),
   certificateIssued: integer('certificate_issued', { mode: 'boolean' }).notNull().default(false),
+  // Presença acumulada (segundos de tempo conectado, via heartbeat)
+  presenceSeconds: integer('presence_seconds').notNull().default(0),
+  lastSeenAt: integer('last_seen_at', { mode: 'timestamp' }),
 });
 
 // ─── Exam Questions (Provas) ─────────────────────────────────────────────────

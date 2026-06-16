@@ -111,6 +111,23 @@ export function LiveSessionPlayerPage() {
     };
   }, [status]);
 
+  // Heartbeat de presença (5.5) — alunos pingam a cada 15s para acumular tempo
+  // conectado (usado nas regras de certificação). Admin/moderador não conta.
+  useEffect(() => {
+    const isAdmin = !!accessToken && user?.role === 'admin';
+    if (status !== 'live' || !sessionId || isAdmin) return;
+    const ping = () => {
+      fetch(`/api/live-sessions/${sessionId}/heartbeat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ participantName }),
+      }).catch(() => { /* ignore */ });
+    };
+    ping();
+    const id = setInterval(ping, 15000);
+    return () => clearInterval(id);
+  }, [status, sessionId, participantName, accessToken, user]);
+
   // Busca o token JaaS antes de iniciar o Jitsi.
   // Admin autenticado → token de moderador; demais → token de participante.
   useEffect(() => {

@@ -6,6 +6,15 @@ import { client } from './index.js';
  *
  *   node --import tsx src/server/db/migrate-interactions.ts
  */
+/** Adiciona uma coluna ignorando o erro "duplicate column" (idempotente). */
+async function addColumnIfMissing(table: string, columnDef: string) {
+  try {
+    await client.execute(`ALTER TABLE ${table} ADD COLUMN ${columnDef}`);
+  } catch (e: any) {
+    if (!e?.message?.includes('duplicate column')) throw e;
+  }
+}
+
 async function migrate() {
   console.log('🔧 Criando tabelas de interações...');
 
@@ -52,6 +61,13 @@ async function migrate() {
     CREATE UNIQUE INDEX IF NOT EXISTS interaction_responses_unique
       ON interaction_responses (session_interaction_id, participant_name)
   `);
+
+  // Certificação configurável (5.5) + presença acumulada (heartbeat).
+  await addColumnIfMissing('live_sessions', 'cert_min_attendance_pct INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing('live_sessions', 'cert_min_attention_pct INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing('live_sessions', 'cert_min_response_pct INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing('live_session_participants', 'presence_seconds INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing('live_session_participants', 'last_seen_at INTEGER');
 
   console.log('✅ Tabelas de interações criadas com sucesso!');
 }

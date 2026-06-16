@@ -11,6 +11,7 @@ import { liveSessions, liveSessionParticipants, users } from '../db/schema.js';
 import { authMiddleware } from '../middleware/auth.js';
 import { generateCertificatePdf } from '../lib/certificatePdf.js';
 import { generateJaasToken } from '../lib/jaas.js';
+import { computeSessionAnalytics } from './interactions.js';
 
 // ─── Schemas Zod ─────────────────────────────────────────────────────────────
 const createSessionSchema = z.object({
@@ -37,6 +38,7 @@ const accessSchema = z.object({
 const completeSchema = z.object({
   employeeName: z.string().min(1),
   companyCode: z.string().min(1),
+  force: z.boolean().optional().default(false), // ignora o gate de certificação
 });
 
 // ─── Admin guard helper ──────────────────────────────────────────────────────
@@ -209,6 +211,25 @@ export async function adminLiveSessionRoutes(app: FastifyInstance) {
     }
 
     try {
+      // Gate de certificação (5.5): se a aula tem regras configuradas e o aluno
+      // não as cumpre, bloqueia a emissão (a menos que force=true).
+      if (!parsed.data.force) {
+        const analytics = await computeSessionAnalytics(params.data.id);
+        const hasRules = analytics.certRules.minAttendancePct > 0
+          || analytics.certRules.minAttentionPct > 0
+          || analytics.certRules.minResponsePct > 0;
+        if (hasRules) {
+          const aluno = analytics.alunos.find((a) => a.name === parsed.data.employeeName);
+          if (aluno && !aluno.eligible) {
+            return reply.status(409).send({
+              error: 'certificate_blocked',
+              message: 'Aluno não cumpre as regras de certificação desta aula.',
+              blockedBy: aluno.blockedBy,
+            });
+          }
+        }
+      }
+
       const updated = await db.update(liveSessionParticipants)
         .set({ completedAt: new Date(), certificateIssued: true })
         .where(

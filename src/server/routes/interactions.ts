@@ -25,7 +25,7 @@ export interface RankingEntry {
   attention: number; // 0-100
 }
 
-interface ParticipantAgg { name: string; answered: number; correct: number; fast: number; totalMs: number; }
+interface ParticipantAgg { name: string; answered: number; correct: number; fast: number; totalMs: number; presenceSeconds: number; }
 
 /** Agrega respostas + participantes de uma sessão — base do ranking e do analytics. */
 async function aggregateSession(sessionId: number): Promise<{ released: number; aggs: ParticipantAgg[] }> {
@@ -46,17 +46,17 @@ async function aggregateSession(sessionId: number): Promise<{ released: number; 
     .where(eq(sessionInteractions.sessionId, sessionId));
 
   const participants = await db
-    .select({ name: liveSessionParticipants.employeeName })
+    .select({ name: liveSessionParticipants.employeeName, presenceSeconds: liveSessionParticipants.presenceSeconds })
     .from(liveSessionParticipants)
     .where(eq(liveSessionParticipants.sessionId, sessionId));
 
   const map = new Map<string, ParticipantAgg>();
   const ensure = (name: string): ParticipantAgg => {
     let e = map.get(name);
-    if (!e) { e = { name, answered: 0, correct: 0, fast: 0, totalMs: 0 }; map.set(name, e); }
+    if (!e) { e = { name, answered: 0, correct: 0, fast: 0, totalMs: 0, presenceSeconds: 0 }; map.set(name, e); }
     return e;
   };
-  for (const p of participants) ensure(p.name);
+  for (const p of participants) { ensure(p.name).presenceSeconds = p.presenceSeconds || 0; }
   for (const r of responses) {
     const e = ensure(r.name);
     e.answered++;
@@ -94,15 +94,23 @@ export async function computeSessionRanking(
   return { released, ranking };
 }
 
-// ─── Analytics pós-aula (5.4) ────────────────────────────────────────────────
+// ─── Analytics pós-aula (5.4) + certificação configurável (5.5) ──────────────
+export interface CertRules {
+  minAttendancePct: number; // presença (tempo conectado) mínima — 0 = desativado
+  minAttentionPct: number;  // score de atenção mínimo — 0 = desativado
+  minResponsePct: number;   // % de interações respondidas — 0 = desativado
+}
+
 export interface SessionAnalytics {
   released: number;
+  certRules: CertRules;
   turma: {
     participants: number;
     interactionsReleased: number;
     responseRatePct: number;   // taxa média de resposta da turma
     correctRatePct: number;    // taxa média de acerto da turma
     avgResponseMs: number;     // tempo médio de resposta
+    eligibleCount: number;     // alunos que cumprem as regras
   };
   alunos: Array<{
     name: string;
@@ -111,14 +119,50 @@ export interface SessionAnalytics {
     correct: number;           // acertos
     errors: number;            // erros
     responseRatePct: number;
+    presencePct: number;       // tempo conectado / duração
     attention: number;         // score de atenção 0-100
     avgMs: number;
     points: number;
+    eligible: boolean;         // cumpre as regras de certificação?
+    blockedBy: string[];       // regras não cumpridas (para a UI)
   }>;
 }
 
-/** Relatório pós-aula: visão da turma + visão individual. */
+/** Avalia as regras de certificação de um aluno. Regra com mínimo 0 está desativada. */
+export function evaluateCertification(
+  rules: CertRules,
+  metrics: { presencePct: number; attention: number; responseRatePct: number },
+): { eligible: boolean; blockedBy: string[] } {
+  const blockedBy: string[] = [];
+  if (rules.minAttendancePct > 0 && metrics.presencePct < rules.minAttendancePct)
+    blockedBy.push(`Presença ${metrics.presencePct}% < ${rules.minAttendancePct}%`);
+  if (rules.minAttentionPct > 0 && metrics.attention < rules.minAttentionPct)
+    blockedBy.push(`Atenção ${metrics.attention}% < ${rules.minAttentionPct}%`);
+  if (rules.minResponsePct > 0 && metrics.responseRatePct < rules.minResponsePct)
+    blockedBy.push(`Respostas ${metrics.responseRatePct}% < ${rules.minResponsePct}%`);
+  return { eligible: blockedBy.length === 0, blockedBy };
+}
+
+/** Relatório pós-aula: visão da turma + visão individual + gate de certificação. */
 export async function computeSessionAnalytics(sessionId: number): Promise<SessionAnalytics> {
+  const session = await db
+    .select({
+      durationMinutes: liveSessions.durationMinutes,
+      minAttendancePct: liveSessions.certMinAttendancePct,
+      minAttentionPct: liveSessions.certMinAttentionPct,
+      minResponsePct: liveSessions.certMinResponsePct,
+    })
+    .from(liveSessions)
+    .where(eq(liveSessions.id, sessionId))
+    .get();
+
+  const durationSeconds = Math.max(1, (session?.durationMinutes ?? 60) * 60);
+  const certRules: CertRules = {
+    minAttendancePct: session?.minAttendancePct ?? 0,
+    minAttentionPct: session?.minAttentionPct ?? 0,
+    minResponsePct: session?.minResponsePct ?? 0,
+  };
+
   const { released, aggs } = await aggregateSession(sessionId);
   const participants = aggs.length;
   const answeredTotal = aggs.reduce((s, a) => s + a.answered, 0);
@@ -128,6 +172,10 @@ export async function computeSessionAnalytics(sessionId: number): Promise<Sessio
 
   const alunos = aggs.map((e) => {
     const s = scoreParticipant(e, released);
+    const presencePct = Math.min(100, Math.round((e.presenceSeconds / durationSeconds) * 100));
+    const { eligible, blockedBy } = evaluateCertification(certRules, {
+      presencePct, attention: s.attention, responseRatePct: s.responseRatePct,
+    });
     return {
       name: e.name,
       received: released,
@@ -135,20 +183,25 @@ export async function computeSessionAnalytics(sessionId: number): Promise<Sessio
       correct: e.correct,
       errors: e.answered - e.correct,
       responseRatePct: s.responseRatePct,
+      presencePct,
       attention: s.attention,
       avgMs: s.avgMs,
       points: s.points,
+      eligible,
+      blockedBy,
     };
   }).sort((a, b) => b.points - a.points);
 
   return {
     released,
+    certRules,
     turma: {
       participants,
       interactionsReleased: released,
       responseRatePct: possible ? Math.round((answeredTotal / possible) * 100) : 0,
       correctRatePct: answeredTotal ? Math.round((correctTotal / answeredTotal) * 100) : 0,
       avgResponseMs: answeredTotal ? Math.round(totalMs / answeredTotal) : 0,
+      eligibleCount: alunos.filter((a) => a.eligible).length,
     },
     alunos,
   };
@@ -418,6 +471,24 @@ export async function interactionsRoutes(app: FastifyInstance) {
     return reply.send(data);
   });
 
+  // PATCH /api/admin/live-sessions/:id/certification — regras configuráveis de certificação
+  app.patch('/api/admin/live-sessions/:id/certification', { preHandler: adminGuard }, async (request, reply) => {
+    const idP = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!idP.success) return reply.status(400).send({ error: 'Invalid session id' });
+    const body = z.object({
+      minAttendancePct: z.number().int().min(0).max(100),
+      minAttentionPct: z.number().int().min(0).max(100),
+      minResponsePct: z.number().int().min(0).max(100),
+    }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ error: 'Invalid body', details: body.error.flatten() });
+    await db.update(liveSessions).set({
+      certMinAttendancePct: body.data.minAttendancePct,
+      certMinAttentionPct: body.data.minAttentionPct,
+      certMinResponsePct: body.data.minResponsePct,
+    }).where(eq(liveSessions.id, idP.data.id));
+    return reply.send({ ok: true });
+  });
+
   // ─── ALUNO (público — polling) ─────────────────────────────────────────────
 
   // GET /api/live-sessions/:id/active-interaction — interação aberta agora (sem a resposta correta)
@@ -488,5 +559,34 @@ export async function interactionsRoutes(app: FastifyInstance) {
       isCorrect,
       correctAnswer: si.type === 'poll' ? null : si.correctAnswer,
     });
+  });
+
+  // POST /api/live-sessions/:id/heartbeat — acumula presença (tempo conectado)
+  // O cliente faz ping periódico; só conta como presença contínua se o intervalo
+  // desde o último ping for curto (gaps maiores = aluno saiu da aula).
+  const HEARTBEAT_MAX_GAP_S = 30;
+  app.post('/api/live-sessions/:id/heartbeat', async (request, reply) => {
+    const idP = z.object({ id: z.coerce.number().int().positive() }).safeParse(request.params);
+    if (!idP.success) return reply.status(400).send({ error: 'Invalid session id' });
+    const body = z.object({ participantName: z.string().min(1).max(120) }).safeParse(request.body);
+    if (!body.success) return reply.status(400).send({ error: 'Invalid body' });
+
+    const p = await db
+      .select({ id: liveSessionParticipants.id, lastSeenAt: liveSessionParticipants.lastSeenAt, presenceSeconds: liveSessionParticipants.presenceSeconds })
+      .from(liveSessionParticipants)
+      .where(and(eq(liveSessionParticipants.sessionId, idP.data.id), eq(liveSessionParticipants.employeeName, body.data.participantName)))
+      .get();
+    if (!p) return reply.status(404).send({ error: 'Participant not found' });
+
+    const now = new Date();
+    let add = 0;
+    if (p.lastSeenAt) {
+      const deltaS = Math.round((now.getTime() - p.lastSeenAt.getTime()) / 1000);
+      if (deltaS > 0 && deltaS <= HEARTBEAT_MAX_GAP_S) add = deltaS;
+    }
+    await db.update(liveSessionParticipants)
+      .set({ lastSeenAt: now, presenceSeconds: (p.presenceSeconds || 0) + add })
+      .where(eq(liveSessionParticipants.id, p.id));
+    return reply.send({ ok: true });
   });
 }
