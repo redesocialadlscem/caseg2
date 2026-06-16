@@ -76,6 +76,11 @@ key.pub
 .lumi-memory.md
 .agent-history/
 
+# Logs de erro / debug locais
+erro.md
+erro*.md
+erro*.log
+
 # ZIPs de download
 *.zip
 certificados_*.zip

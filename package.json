@@ -14,6 +14,7 @@
     "db:migrate-forum": "node --import tsx src/server/db/migrate-forum.ts",
     "db:migrate-commerce": "node --import tsx src/server/db/migrate-commerce.ts",
     "db:migrate-interactions": "node --import tsx src/server/db/migrate-interactions.ts",
+    "db:setup": "npm run db:migrate-exams && npm run db:migrate-forum && npm run db:migrate-commerce && npm run db:migrate-interactions",
     "db:seed": "node --import tsx src/server/db/seed.ts",
     "create-admin": "node --import tsx scripts/create-admin.ts",
     "typecheck:server": "node ./node_modules/typescript/bin/tsc -p tsconfig.server.json"
