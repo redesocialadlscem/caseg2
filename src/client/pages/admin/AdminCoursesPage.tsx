@@ -30,6 +30,7 @@ interface Course {
   imageUrl: string;
   isFeatured: boolean;
   isActive: boolean;
+  price: number;
   createdAt: string;
 }
 
@@ -46,6 +47,7 @@ interface CourseFormData {
   description: string;
   imageUrl: string;
   isFeatured: boolean;
+  price: number;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -66,6 +68,7 @@ export function AdminCoursesPage() {
     description: '',
     imageUrl: '',
     isFeatured: false,
+    price: 0,
   });
   const [formErrors, setFormErrors] = useState<Partial<CourseFormData>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -107,7 +110,7 @@ export function AdminCoursesPage() {
   // ─── Course CRUD ─────────────────────────────────────────────────────────
   const openCreateModal = () => {
     setEditingCourse(null);
-    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false });
+    setFormData({ title: '', category: '', description: '', imageUrl: '', isFeatured: false, price: 0 });
     setFormErrors({});
     setIsModalOpen(true);
   };
@@ -120,6 +123,7 @@ export function AdminCoursesPage() {
       description: course.description,
       imageUrl: course.imageUrl || '',
       isFeatured: course.isFeatured || false,
+      price: course.price ?? 0,
     });
     setFormErrors({});
     setIsModalOpen(true);
@@ -378,6 +382,12 @@ export function AdminCoursesPage() {
                             {course.category}
                           </span>
                           <span>•</span>
+                          <span className="font-bold text-black">
+                            {course.price > 0
+                              ? course.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                              : 'Gratuito'}
+                          </span>
+                          <span>•</span>
                           <span>
                             Criado em{' '}
                             {new Date(course.createdAt).toLocaleDateString(
@@ -580,6 +590,29 @@ export function AdminCoursesPage() {
                   setFormData((prev) => ({ ...prev, imageUrl: e.target.value }))
                 }
               />
+
+              <div className="flex flex-col gap-1.5 w-full">
+                <label htmlFor="price" className="font-display font-bold text-xs uppercase tracking-wide mb-2 block">
+                  Valor (R$)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-500 pointer-events-none">R$</span>
+                  <input
+                    id="price"
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    inputMode="decimal"
+                    placeholder="0,00"
+                    value={Number.isFinite(formData.price) ? formData.price : 0}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, price: Math.max(0, parseFloat(e.target.value) || 0) }))
+                    }
+                    className="w-full bg-white border-2 border-black rounded-xl pl-11 pr-4 py-3 font-body text-base focus:outline-none focus:ring-4 focus:ring-brand/30 focus:border-brand transition-shadow"
+                  />
+                </div>
+                <span className="text-xs text-gray-500">Deixe <strong>0</strong> para um curso gratuito.</span>
+              </div>
 
               <label className="flex items-center gap-3 cursor-pointer select-none p-3 border-2 border-black rounded-xl bg-white hover:bg-gray-50 transition-colors">
                 <input

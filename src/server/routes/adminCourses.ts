@@ -12,6 +12,7 @@ const createCourseSchema = z.object({
   description: z.string().min(1),
   imageUrl: z.string().url().optional().or(z.literal('')),
   isFeatured: z.boolean().optional(),
+  price: z.number().min(0).max(1_000_000).optional(), // 0 = gratuito
 });
 
 const updateCourseSchema = z.object({
@@ -21,6 +22,7 @@ const updateCourseSchema = z.object({
   imageUrl: z.string().url().optional().or(z.literal('')),
   isFeatured: z.boolean().optional(),
   isActive: z.boolean().optional(),
+  price: z.number().min(0).max(1_000_000).optional(),
 });
 
 const idParamSchema = z.object({
@@ -63,6 +65,7 @@ export async function adminCourseRoutes(app: FastifyInstance) {
         imageUrl: courses.imageUrl,
         isFeatured: courses.isFeatured,
         isActive: courses.isActive,
+        price: courses.price,
         createdAt: courses.createdAt,
       })
         .from(courses)
